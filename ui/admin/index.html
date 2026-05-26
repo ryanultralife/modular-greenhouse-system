@@ -25,7 +25,8 @@
   </header>
 
   <nav id="tabs">
-    <button data-tab="configurator" class="active">Configurator</button>
+    <button data-tab="setup" class="active">Go-live</button>
+    <button data-tab="configurator">Configurator</button>
     <button data-tab="orders">Orders</button>
     <button data-tab="catalog">Catalog &amp; Pricing</button>
     <button data-tab="production">Production</button>
@@ -36,8 +37,18 @@
   </nav>
 
   <main>
+    <!-- Go-live -->
+    <section id="setup" class="tab active">
+      <h2>Setup &amp; go-live</h2>
+      <p class="muted">Everything that needs to be true before customers can order and pay.
+        Live status, refreshed from the system.</p>
+      <div id="setup-banner"></div>
+      <div id="setup-list"></div>
+      <button id="setup-refresh" style="margin-top:12px">Refresh</button>
+    </section>
+
     <!-- Configurator -->
-    <section id="configurator" class="tab active">
+    <section id="configurator" class="tab">
       <h2>Configure &amp; quote</h2>
       <div class="row">
         <label>Model
