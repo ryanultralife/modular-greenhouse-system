@@ -32,15 +32,32 @@ class QuoteRequestPublic(QuoteRequest):
 @router.get("/models")
 def public_models(db: Session = Depends(session_dependency)):
     catalog = Catalog(catalog_store.load(db))
+    models = []
+    for mid in catalog.model_ids():
+        m = catalog.model(mid)
+        base = m.get("skus", {}).get("base_kit", {})
+        models.append(
+            {
+                "id": mid,
+                "name": m["name"],
+                "width_ft": m.get("width_ft"),
+                "bay_length_ft": m.get("bay_length_ft"),
+                "base_price_usd": base.get("price_usd") if base.get("verified_price") else None,
+            }
+        )
+    env = catalog.engineering_envelope
     return {
         "company": {
             "name": catalog.company.get("name"),
             "location": catalog.company.get("location"),
             "website": catalog.company.get("website"),
         },
-        "models": [
-            {"id": mid, "name": catalog.model(mid)["name"]} for mid in catalog.model_ids()
-        ],
+        "envelope": {
+            "wind_mph": (env.get("wind_mph") or {}).get("value"),
+            "snow_depth_ft": (env.get("snow_depth_ft") or {}).get("value"),
+            "warranty_years": (env.get("warranty_years") or {}).get("value"),
+        },
+        "models": models,
         "shapes": [{"name": s, "runs": n} for s, n in SHAPE_RUN_COUNTS.items()],
     }
 
