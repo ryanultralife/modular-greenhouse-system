@@ -3,5 +3,13 @@ from .planner import (
     StockList,
     build_stock_list,
 )
+from .shipping import ShipmentLine, ShipmentPlan, build_shipment_plan
 
-__all__ = ["AggregatedLine", "StockList", "build_stock_list"]
+__all__ = [
+    "AggregatedLine",
+    "StockList",
+    "build_stock_list",
+    "ShipmentLine",
+    "ShipmentPlan",
+    "build_shipment_plan",
+]

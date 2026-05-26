@@ -16,7 +16,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import init_db
-from .routers import catalog, integrations, orders, production, public, quotes
+from .routers import catalog, integrations, orders, production, public, quotes, shipping
 
 UI_DIR = Path(__file__).resolve().parents[1] / "ui"
 
@@ -39,7 +39,7 @@ def create_app(db_url: str | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    for r in (quotes, orders, catalog, production, integrations, public):
+    for r in (quotes, orders, catalog, production, integrations, public, shipping):
         app.include_router(r.router, prefix="/api")
 
     @app.get("/health")

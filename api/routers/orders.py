@@ -9,10 +9,19 @@ from sqlalchemy.orm import Session
 from greenhouse import CatalogError
 
 from ..billing import BillingError, create_invoice_for_order
+from ..calendly_actions import CalendlySchedulingError, create_install_link
 from ..db import session_dependency
 from ..engine_bridge import compute_quote
 from ..models_db import ORDER_STATUSES, Order
-from ..schemas import InvoiceResult, OrderCreate, OrderOut, OrderStatusUpdate
+from ..quickbooks_sync import QuickBooksSyncError, sync_order
+from ..schemas import (
+    InvoiceResult,
+    OrderCreate,
+    OrderOut,
+    OrderStatusUpdate,
+    QuickBooksSyncResult,
+    ScheduleResult,
+)
 
 router = APIRouter(tags=["orders"])
 
@@ -34,6 +43,7 @@ def _to_out(order: Order) -> dict:
         "pricing": order.pricing,
         "engineering": order.engineering,
         "external_refs": order.external_refs or {},
+        "shipping": order.shipping or {},
         "fab_session_id": order.fab_session_id,
     }
 
@@ -122,3 +132,25 @@ def invoice_order(
     except BillingError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return refs
+
+
+@router.post("/orders/{order_id}/quickbooks-sync", response_model=QuickBooksSyncResult)
+def quickbooks_sync(order_id: int, db: Session = Depends(session_dependency)):
+    order = db.get(Order, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    try:
+        return sync_order(db, order)
+    except QuickBooksSyncError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/orders/{order_id}/schedule-install", response_model=ScheduleResult)
+def schedule_install(order_id: int, db: Session = Depends(session_dependency)):
+    order = db.get(Order, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    try:
+        return {"booking_url": create_install_link(db, order)}
+    except CalendlySchedulingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

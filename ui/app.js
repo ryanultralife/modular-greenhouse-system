@@ -176,17 +176,25 @@ async function loadOrders() {
     const engOk = !o.engineering?.requires_signoff;
 
     const refs = o.external_refs || {};
-    let invoiceCell;
+    const actions = el("td", {});
+
+    // Stripe invoice
     if (refs.stripe_invoice_id) {
-      invoiceCell = refs.stripe_invoice_url
-        ? el("a", { href: refs.stripe_invoice_url, target: "_blank" }, refs.stripe_invoice_status || "invoice")
-        : el("span", { class: "badge ok" }, refs.stripe_invoice_status || "invoiced");
+      actions.append(refs.stripe_invoice_url
+        ? el("a", { href: refs.stripe_invoice_url, target: "_blank" }, "invoice")
+        : el("span", { class: "badge ok" }, "invoiced"), " ");
     } else {
-      invoiceCell = el("button", { onclick: async () => {
-        try { const r = await api(`/orders/${o.id}/invoice`, { method: "POST" }); toast(`Draft invoice ${r.stripe_invoice_id} created`); loadOrders(); }
-        catch (e) { toast(e.message, true); }
-      } }, "Create draft");
+      actions.append(el("button", { onclick: () => orderAction(o.id, "/invoice", "Stripe draft invoice") }, "Invoice"), " ");
     }
+    // QuickBooks
+    if (refs.qbo_invoice_id) actions.append(el("span", { class: "badge ok" }, "QBO " + (refs.qbo_invoice_doc_number || "✓")), " ");
+    else actions.append(el("button", { onclick: () => orderAction(o.id, "/quickbooks-sync", "QuickBooks invoice") }, "QBO"), " ");
+    // Calendly install
+    if (refs.calendly_booking_url) actions.append(el("a", { href: refs.calendly_booking_url, target: "_blank" }, "install link"), " ");
+    else actions.append(el("button", { onclick: () => orderAction(o.id, "/schedule-install", "Install scheduling link") }, "Schedule"), " ");
+    // Shipping
+    if (o.shipping?.ship_date) actions.append(el("span", { class: "badge ok" }, "shipped" + (o.shipping.same_day ? " (same-day)" : "")));
+    else actions.append(el("button", { onclick: () => shipOrder(o.id) }, "Ship"));
 
     table.append(el("tr", {},
       el("td", {}, "#" + o.id),
@@ -197,9 +205,22 @@ async function loadOrders() {
       el("td", {}, el("span", { class: "badge " + (engOk ? "ok" : "warn") }, engOk ? "ok" : "sign-off")),
       el("td", {}, sel),
       el("td", {}, save),
-      el("td", {}, invoiceCell)));
+      actions));
   });
   box.append(table);
+}
+
+async function orderAction(id, path, label) {
+  try { await api(`/orders/${id}${path}`, { method: "POST" }); toast(`${label} created for #${id}`); loadOrders(); }
+  catch (e) { toast(e.message, true); }
+}
+
+async function shipOrder(id) {
+  const carrier = prompt("Carrier (e.g. UPS):", "UPS");
+  if (carrier === null) return;
+  const tracking = prompt("Tracking number (optional):", "") || "";
+  try { const r = await api(`/orders/${id}/ship`, { method: "POST", body: JSON.stringify({ carrier, tracking }) }); toast(`Order #${id} shipped${r.shipping?.same_day ? " (same-day)" : ""}`); loadOrders(); }
+  catch (e) { toast(e.message, true); }
 }
 document.getElementById("orders-refresh").addEventListener("click", loadOrders);
 document.getElementById("orders-filter").addEventListener("change", loadOrders);

@@ -122,7 +122,10 @@ PROVIDERS: dict[str, Provider] = {
     "calendly": Provider(
         "calendly",
         "Calendly (scheduling)",
-        (Field("access_token", "Personal access token", secret=True),),
+        (
+            Field("access_token", "Personal access token", secret=True),
+            Field("event_type_uri", "Install event type URI (optional)"),
+        ),
         _calendly_test,
         "https://calendly.com/integrations/api_webhooks",
     ),
@@ -134,6 +137,8 @@ PROVIDERS: dict[str, Provider] = {
             Field("client_secret", "Client secret", secret=True),
             Field("realm_id", "Company / Realm ID"),
             Field("refresh_token", "Refresh token", secret=True),
+            Field("environment", "Environment (production / sandbox)"),
+            Field("item_ref", "Default item id for invoice lines (optional)"),
         ),
         _quickbooks_test,
         "https://developer.intuit.com",

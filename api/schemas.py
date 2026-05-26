@@ -73,6 +73,39 @@ class InvoiceResult(BaseModel):
     stripe_invoice_status: str | None = None
 
 
+class QuickBooksSyncResult(BaseModel):
+    qbo_customer_id: str | None = None
+    qbo_invoice_id: str | None = None
+    qbo_invoice_doc_number: str | None = None
+
+
+class ScheduleResult(BaseModel):
+    booking_url: str
+
+
+class ShipmentLineOut(BaseModel):
+    sku_id: str
+    name: str
+    quantity: int
+    unit_weight_lb: float | None
+    line_weight_lb: float | None
+
+
+class ShipmentPlanOut(BaseModel):
+    order_id: int | None
+    lines: list[ShipmentLineOut]
+    total_weight_lb: float | None
+    weight_complete: bool
+    ready: bool
+    total_units: int
+
+
+class ShipRequest(BaseModel):
+    carrier: str = ""
+    tracking: str = ""
+    ship_date: date | None = None
+
+
 class OrderOut(BaseModel):
     id: int
     created_at: datetime
@@ -89,6 +122,7 @@ class OrderOut(BaseModel):
     pricing: dict
     engineering: dict
     external_refs: dict
+    shipping: dict
     fab_session_id: int | None
 
 

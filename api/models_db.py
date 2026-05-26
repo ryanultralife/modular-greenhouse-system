@@ -39,7 +39,8 @@ class Order(Base):
 
     source: Mapped[str] = mapped_column(String(20), default="admin")  # admin | website
     contact: Mapped[dict] = mapped_column(JSON, default=dict)
-    external_refs: Mapped[dict] = mapped_column(JSON, default=dict)  # stripe/quickbooks ids
+    external_refs: Mapped[dict] = mapped_column(JSON, default=dict)  # stripe/quickbooks/calendly ids
+    shipping: Mapped[dict] = mapped_column(JSON, default=dict)  # carrier/tracking/ship_date
 
     fab_session_id: Mapped[int | None] = mapped_column(
         ForeignKey("fab_sessions.id"), nullable=True
