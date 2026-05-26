@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "modular-greenhouse-system"
+version = "0.1.0"
+description = "Configuration, BOM, quoting, and engineering-triage engine for Modular Greenhouses"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+greenhouse = "greenhouse.cli:main"
+
+[tool.setuptools]
+packages = ["greenhouse"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+# Catalog lives at repo-root data/; ship it alongside the package on install.
+greenhouse = ["../data/catalog.json"]

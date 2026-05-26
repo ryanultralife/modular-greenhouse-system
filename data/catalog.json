@@ -1,0 +1,130 @@
+{
+  "schema_version": "0.1.0",
+  "company": {
+    "name": "Modular Greenhouses",
+    "location": "Reno, NV",
+    "principal": "Joshua Smith",
+    "patent": "US 10,426,102",
+    "website": "https://www.modulargreenhouses.com"
+  },
+  "data_provenance": {
+    "verified": "Confirmed from public sources (website / patent) or supplied by Josh.",
+    "placeholder": "Structure only. Value MUST be replaced with Josh's real figure before it can be quoted or engineered. Anything with verified=false is a guess for wiring purposes and is never treated as authoritative.",
+    "how_to_use": "See docs/engineering_data.md. Replace every verified=false value, then flip verified to true."
+  },
+
+  "engineering_envelope": {
+    "_note": "Published manufacturer ratings. They apply to STANDARD straight-run configurations only. Non-standard layouts (T / X / L / long runs) require independent engineer sign-off before these numbers may be advertised for that build.",
+    "wind_mph": { "value": 130, "verified": true, "source": "modulargreenhouses.com" },
+    "snow_depth_ft": { "value": 6, "verified": true, "source": "modulargreenhouses.com" },
+    "warranty_years": { "value": 10, "verified": true, "source": "modulargreenhouses.com" }
+  },
+
+  "configuration_limits": {
+    "_note": "These thresholds decide whether the configurator can call a layout PRELIMINARY-OK on its own, or must escalate to engineer sign-off. All values below are PLACEHOLDERS. Until Josh supplies the real limits (verified=true), every non-standard layout is reported as requiring sign-off.",
+    "max_straight_run_ft": { "value": 40, "verified": false },
+    "max_total_footprint_sqft": { "value": 1200, "verified": false },
+    "max_junctions": { "value": 2, "verified": false },
+    "junction_types_supported": { "value": ["corner", "tee", "cross"], "verified": false }
+  },
+
+  "models": {
+    "raised_bed_4x4": {
+      "name": "4×4 Modular Raised Bed Greenhouse",
+      "bay_length_ft": 4,
+      "width_ft": 4,
+      "base_bays": 1,
+      "base_end_caps": 2,
+      "skus": {
+        "base_kit": {
+          "name": "4×4 Raised Bed Base Kit (1 bay, 2 end caps)",
+          "price_usd": 899,
+          "verified_price": true,
+          "weight_lb": null
+        },
+        "extension_module": {
+          "name": "4' Extension Module (adds 1 bay)",
+          "price_usd": null,
+          "verified_price": false,
+          "weight_lb": null
+        },
+        "end_cap": {
+          "name": "End Cap Panel",
+          "price_usd": null,
+          "verified_price": false,
+          "weight_lb": null
+        },
+        "door_end": {
+          "name": "Door End Panel",
+          "price_usd": null,
+          "verified_price": false,
+          "weight_lb": null
+        },
+        "junction_kit": {
+          "name": "Junction / Branch Connector Kit",
+          "price_usd": null,
+          "verified_price": false,
+          "weight_lb": null
+        }
+      }
+    },
+
+    "barn_6_5": {
+      "name": "6'5\" Barn Style Modular Greenhouse",
+      "bay_length_ft": 4,
+      "width_ft": 6.42,
+      "base_bays": 1,
+      "base_end_caps": 2,
+      "skus": {
+        "base_kit": {
+          "name": "Barn Style Base Kit (1 bay, 2 end caps)",
+          "price_usd": 1699,
+          "verified_price": true,
+          "weight_lb": null
+        },
+        "extension_module": {
+          "name": "4' Extension Module (adds 1 bay)",
+          "price_usd": null,
+          "verified_price": false,
+          "weight_lb": null
+        },
+        "end_cap": {
+          "name": "End Cap Panel",
+          "price_usd": null,
+          "verified_price": false,
+          "weight_lb": null
+        },
+        "door_end": {
+          "name": "Door End Panel",
+          "price_usd": null,
+          "verified_price": false,
+          "weight_lb": null
+        },
+        "junction_kit": {
+          "name": "Junction / Branch Connector Kit",
+          "price_usd": null,
+          "verified_price": false,
+          "weight_lb": null
+        }
+      }
+    }
+  },
+
+  "accessories": {
+    "auto_pop_vent": {
+      "name": "Automatic Pop Vent",
+      "price_usd": null,
+      "verified_price": false
+    },
+    "vent_cylinder": {
+      "name": "Vent Cylinder (replacement)",
+      "price_usd": null,
+      "verified_price": false
+    },
+    "shelf_raised_bed_combo": {
+      "name": "8\" Shelf Bed / 13\" Raised Bed Combo",
+      "price_usd": null,
+      "verified_price": false
+    }
+  }
+}
