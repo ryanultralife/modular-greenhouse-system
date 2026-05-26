@@ -10,15 +10,18 @@
           "api/**",
           "greenhouse/**",
           "production/**",
-          "ui/**",
-          "ui/public/**",
-          "ui/admin/**",
           "data/catalog.json"
         ]
       }
-    }
+    },
+    { "src": "ui/**", "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "index.py" }
+    { "src": "/api/(.*)", "dest": "index.py" },
+    { "src": "/health", "dest": "index.py" },
+    { "src": "/admin/?", "dest": "/ui/admin/index.html" },
+    { "src": "/admin/(.+)", "dest": "/ui/admin/$1" },
+    { "src": "/", "dest": "/ui/public/index.html" },
+    { "src": "/(.+)", "dest": "/ui/public/$1" }
   ]
 }
