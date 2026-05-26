@@ -134,7 +134,10 @@ PROVIDERS: dict[str, Provider] = {
     "stripe": Provider(
         "stripe",
         "Stripe (payments)",
-        (Field("secret_key", "Secret key (sk_live_… / sk_test_…)", secret=True),),
+        (
+            Field("secret_key", "Secret key (sk_live_… / sk_test_…)", secret=True),
+            Field("webhook_secret", "Webhook signing secret (whsec_…)", secret=True),
+        ),
         _stripe_test,
         "https://dashboard.stripe.com/apikeys",
     ),
