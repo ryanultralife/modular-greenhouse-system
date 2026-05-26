@@ -74,3 +74,13 @@ class Integration(Base):
     last_test_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_test_ok: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     last_test_message: Mapped[str] = mapped_column(String(400), default="")
+
+
+class Setting(Base):
+    """Key/value store. Used for catalog overrides (serverless can't write the
+    catalog.json file), and available for other small admin settings."""
+
+    __tablename__ = "settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[dict] = mapped_column(JSON, default=dict)

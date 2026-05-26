@@ -1,68 +1,90 @@
-"""Read/write access to data/catalog.json for the admin UI.
+"""Catalog access with DB-backed overrides (serverless-safe).
 
-The engine (greenhouse.Catalog) reads this same file, so any edit made here is
-picked up by the next quote. Writes are atomic (temp file + replace) and the
-JSON is validated before it replaces the live file.
+The bundled ``data/catalog.json`` is the read-only SEED. Edits made in the
+admin UI are stored as overrides in the ``settings`` table and deep-merged over
+the seed at read time. Nothing is written to the filesystem, so this works on a
+read-only serverless filesystem (Vercel) as well as locally.
 """
 
 from __future__ import annotations
 
+import copy
 import json
-import os
-import tempfile
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy.orm import Session
+
 from greenhouse.catalog import DEFAULT_CATALOG_PATH
 
+from .models_db import Setting
 
-def load() -> dict[str, Any]:
+OVERRIDES_KEY = "catalog_overrides"
+_EDITABLE_SKU_FIELDS = {"price_usd", "verified_price", "weight_lb", "fulfillment", "copacker"}
+
+
+def _seed() -> dict[str, Any]:
     return json.loads(Path(DEFAULT_CATALOG_PATH).read_text())
 
 
-def _atomic_write(data: dict[str, Any]) -> None:
-    path = Path(DEFAULT_CATALOG_PATH)
-    text = json.dumps(data, indent=2)
-    json.loads(text)  # validate round-trip before touching the live file
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".json.tmp")
-    try:
-        with os.fdopen(fd, "w") as fh:
-            fh.write(text)
-        os.replace(tmp, path)
-    finally:
-        if os.path.exists(tmp):
-            os.remove(tmp)
+def _deep_merge(base: dict, override: dict) -> dict:
+    out = copy.deepcopy(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            out[key] = _deep_merge(out[key], value)
+        else:
+            out[key] = copy.deepcopy(value)
+    return out
 
 
-def update_sku(model_id: str, sku_id: str, fields: dict[str, Any]) -> dict[str, Any]:
-    """Update mutable fields on a SKU. Returns the updated SKU."""
-    data = load()
-    models = data.get("models", {})
+def _get_overrides(db: Session) -> dict:
+    row = db.get(Setting, OVERRIDES_KEY)
+    return copy.deepcopy(row.value) if row and row.value else {}
+
+
+def _save_overrides(db: Session, overrides: dict) -> None:
+    row = db.get(Setting, OVERRIDES_KEY)
+    if row is None:
+        db.add(Setting(key=OVERRIDES_KEY, value=overrides))
+    else:
+        row.value = overrides  # reassign so SQLAlchemy detects the change
+    db.commit()
+
+
+def load(db: Session) -> dict[str, Any]:
+    """Seed catalog deep-merged with any saved overrides."""
+    return _deep_merge(_seed(), _get_overrides(db))
+
+
+def update_sku(db: Session, model_id: str, sku_id: str, fields: dict[str, Any]) -> dict[str, Any]:
+    seed = _seed()
+    models = seed.get("models", {})
     if model_id not in models:
         raise KeyError(f"Unknown model '{model_id}'")
-    skus = models[model_id].get("skus", {})
-    if sku_id not in skus:
+    if sku_id not in models[model_id].get("skus", {}):
         raise KeyError(f"Unknown SKU '{sku_id}' on model '{model_id}'")
-
-    sku = skus[sku_id]
-    allowed = {"price_usd", "verified_price", "weight_lb", "fulfillment", "copacker"}
-    for key, value in fields.items():
-        if key not in allowed:
+    for key in fields:
+        if key not in _EDITABLE_SKU_FIELDS:
             raise KeyError(f"Field '{key}' is not editable on a SKU")
-        sku[key] = value
 
-    _atomic_write(data)
-    return sku
+    overrides = _get_overrides(db)
+    sku_ov = (
+        overrides.setdefault("models", {})
+        .setdefault(model_id, {})
+        .setdefault("skus", {})
+        .setdefault(sku_id, {})
+    )
+    sku_ov.update(fields)
+    _save_overrides(db, overrides)
+    return _deep_merge(seed, overrides)["models"][model_id]["skus"][sku_id]
 
 
-def update_limit(key: str, value: Any, verified: bool) -> dict[str, Any]:
-    """Set a configuration limit's value and verified flag."""
-    data = load()
-    limits = data.setdefault("configuration_limits", {})
-    entry = limits.get(key)
-    if not isinstance(entry, dict):
+def update_limit(db: Session, key: str, value: Any, verified: bool) -> dict[str, Any]:
+    seed = _seed()
+    if key not in seed.get("configuration_limits", {}):
         raise KeyError(f"Unknown configuration limit '{key}'")
-    entry["value"] = value
-    entry["verified"] = bool(verified)
-    _atomic_write(data)
+    overrides = _get_overrides(db)
+    entry = {"value": value, "verified": bool(verified)}
+    overrides.setdefault("configuration_limits", {})[key] = entry
+    _save_overrides(db, overrides)
     return entry

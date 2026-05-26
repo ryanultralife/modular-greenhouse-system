@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from greenhouse import Catalog, CatalogError
 from greenhouse.models import SHAPE_RUN_COUNTS
 
+from .. import catalog_store
 from ..db import session_dependency
 from ..engine_bridge import compute_quote
 from ..models_db import Order
@@ -29,8 +30,8 @@ class QuoteRequestPublic(QuoteRequest):
 
 
 @router.get("/models")
-def public_models():
-    catalog = Catalog.load()
+def public_models(db: Session = Depends(session_dependency)):
+    catalog = Catalog(catalog_store.load(db))
     return {
         "company": {
             "name": catalog.company.get("name"),
@@ -45,10 +46,10 @@ def public_models():
 
 
 @router.post("/quote")
-def public_quote(req: QuoteRequest):
+def public_quote(req: QuoteRequest, db: Session = Depends(session_dependency)):
     """Read-only price/engineering preview for a website visitor."""
     try:
-        result = compute_quote(req.model, req.shape, req.runs)
+        result = compute_quote(catalog_store.load(db), req.model, req.shape, req.runs)
     except (CatalogError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     # Trim internals the public page doesn't need.
@@ -71,7 +72,7 @@ def public_quote_request(req: QuoteRequestPublic, db: Session = Depends(session_
     if not (req.email or req.phone):
         raise HTTPException(status_code=400, detail="Please provide an email or phone number.")
     try:
-        result = compute_quote(req.model, req.shape, req.runs)
+        result = compute_quote(catalog_store.load(db), req.model, req.shape, req.runs)
     except (CatalogError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

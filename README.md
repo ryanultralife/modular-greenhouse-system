@@ -95,6 +95,26 @@ over the API.
   quote where money is involved, are idempotent, and fail with clear messages
   rather than partial state.
 
+## Deploy (Vercel + Supabase)
+
+The app runs statelessly on Vercel serverless backed by Supabase Postgres — no
+filesystem writes (catalog edits persist in the DB; secrets come from env vars).
+
+1. **Supabase** — the migration in `supabase/migrations/` creates the schema.
+   With the Supabase GitHub integration connected, it runs on push to `main`
+   (or run `supabase db push` locally). Grab the Postgres **pooler** connection
+   string from Supabase → Project Settings → Database.
+2. **Vercel** — `vercel.json` builds `index.py` (the ASGI app) and routes all
+   traffic to it (the app also serves the static `ui/`). Set these env vars in
+   the Vercel project:
+   - `DATABASE_URL` — the Supabase pooler connection string
+   - `MGS_SECRET_KEY` — a Fernet key (`python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`)
+   - `MGS_ADMIN_PASSWORD` — the admin login password
+   - `MGS_CORS_ORIGINS` — (optional) allowed origins for the public widget
+
+Locally, with no `DATABASE_URL`, it falls back to a SQLite file — handy for dev
+and what the test suite uses.
+
 ## Tests
 
 ```bash

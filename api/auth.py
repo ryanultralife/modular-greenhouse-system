@@ -36,13 +36,18 @@ def _resolve_password() -> str:
         return pw
     if PW_FILE.exists():
         return PW_FILE.read_text().strip()
-    security.DATA_DIR.mkdir(parents=True, exist_ok=True)
     pw = secrets.token_urlsafe(16)
-    PW_FILE.write_text(pw)
     try:
+        security.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        PW_FILE.write_text(pw)
         PW_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0600
-    except OSError:
-        pass
+    except OSError as exc:
+        # Read-only filesystem (e.g. serverless): a per-instance password is
+        # useless, so require an explicit one.
+        raise RuntimeError(
+            "MGS_ADMIN_PASSWORD is not set and a password file could not be "
+            "written. Set the MGS_ADMIN_PASSWORD environment variable."
+        ) from exc
     print(f"[auth] No MGS_ADMIN_PASSWORD set. Generated admin password for user '{ADMIN_USER}': {pw}")
     print(f"[auth] Stored at {PW_FILE} (git-ignored). Set MGS_ADMIN_PASSWORD to override.")
     return pw

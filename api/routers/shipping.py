@@ -27,8 +27,8 @@ from ..schemas import ShipmentPlanOut, ShipRequest
 router = APIRouter(tags=["shipping"])
 
 
-def _plan_payload(order: Order) -> dict:
-    catalog_data = catalog_store.load()
+def _plan_payload(order: Order, db: Session) -> dict:
+    catalog_data = catalog_store.load(db)
     plan = build_shipment_plan({"id": order.id, "model_id": order.model_id, "bom": order.bom}, catalog_data)
     return {
         "order_id": plan.order_id,
@@ -45,7 +45,7 @@ def shipment_plan(order_id: int, db: Session = Depends(session_dependency)):
     order = db.get(Order, order_id)
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
-    return _plan_payload(order)
+    return _plan_payload(order, db)
 
 
 @router.post("/orders/{order_id}/ship")
@@ -54,7 +54,7 @@ def ship_order(order_id: int, req: ShipRequest, db: Session = Depends(session_de
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    plan = _plan_payload(order)
+    plan = _plan_payload(order, db)
     if not plan["ready"]:
         raise HTTPException(
             status_code=400,
@@ -82,7 +82,7 @@ def shipping_queue(status: str = "in_production", db: Session = Depends(session_
     orders = db.scalars(select(Order).where(Order.status == status)).all()
     out = []
     for o in orders:
-        plan = _plan_payload(o)
+        plan = _plan_payload(o, db)
         out.append(
             {
                 "order_id": o.id,

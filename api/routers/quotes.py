@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
 
 from greenhouse import Catalog, CatalogError
 from greenhouse.models import SHAPE_RUN_COUNTS
 
+from .. import catalog_store
+from ..db import session_dependency
 from ..engine_bridge import compute_quote
 from ..schemas import QuoteRequest, QuoteResponse
 
@@ -14,8 +17,8 @@ router = APIRouter(tags=["configurator"])
 
 
 @router.get("/models")
-def list_models():
-    catalog = Catalog.load()
+def list_models(db: Session = Depends(session_dependency)):
+    catalog = Catalog(catalog_store.load(db))
     models = [
         {
             "id": mid,
@@ -33,8 +36,8 @@ def list_models():
 
 
 @router.post("/quote", response_model=QuoteResponse)
-def make_quote(req: QuoteRequest):
+def make_quote(req: QuoteRequest, db: Session = Depends(session_dependency)):
     try:
-        return compute_quote(req.model, req.shape, req.runs)
+        return compute_quote(catalog_store.load(db), req.model, req.shape, req.runs)
     except (CatalogError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

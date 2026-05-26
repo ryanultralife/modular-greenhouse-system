@@ -34,13 +34,18 @@ def _load_or_create_key() -> bytes:
     if KEY_FILE.exists():
         return KEY_FILE.read_bytes().strip()
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
     key = Fernet.generate_key()
-    KEY_FILE.write_bytes(key)
     try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        KEY_FILE.write_bytes(key)
         KEY_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0600
-    except OSError:
-        pass
+    except OSError as exc:
+        # Read-only filesystem (e.g. serverless). A per-instance key would make
+        # secrets undecryptable across instances, so require an explicit one.
+        raise RuntimeError(
+            "MGS_SECRET_KEY is not set and a key file could not be written. "
+            "Set the MGS_SECRET_KEY environment variable to a Fernet key."
+        ) from exc
     return key
 
 

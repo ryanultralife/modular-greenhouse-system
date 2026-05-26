@@ -65,7 +65,7 @@ def session_stock_list(session_id: int, db: Session = Depends(session_dependency
     if s is None:
         raise HTTPException(status_code=404, detail="Fabrication session not found")
     return _stock_list_payload(
-        [{"id": o.id, "model_id": o.model_id, "bom": o.bom} for o in s.orders]
+        [{"id": o.id, "model_id": o.model_id, "bom": o.bom} for o in s.orders], db
     )
 
 
@@ -79,11 +79,11 @@ def stock_list_for_status(
         {"id": o.id, "model_id": o.model_id, "bom": o.bom}
         for o in db.scalars(stmt).all()
     ]
-    return _stock_list_payload(orders)
+    return _stock_list_payload(orders, db)
 
 
-def _stock_list_payload(orders: list[dict]) -> dict:
-    catalog_data = catalog_store.load()
+def _stock_list_payload(orders: list[dict], db: Session) -> dict:
+    catalog_data = catalog_store.load(db)
     stock = build_stock_list(orders, catalog_data)
     return {
         "order_ids": stock.order_ids,

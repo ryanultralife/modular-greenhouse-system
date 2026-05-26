@@ -7,9 +7,12 @@ from greenhouse.configurator import footprint_sqft
 from greenhouse.engineering import REQUIRES_SIGNOFF
 
 
-def compute_quote(model: str, shape: str, runs: list[float]) -> dict:
-    """Run the engine and return a fully serialized quote payload."""
-    catalog = Catalog.load()
+def compute_quote(catalog_data: dict, model: str, shape: str, runs: list[float]) -> dict:
+    """Run the engine and return a fully serialized quote payload.
+
+    ``catalog_data`` is the merged (seed + overrides) catalog from catalog_store.
+    """
+    catalog = Catalog(catalog_data)
     layout = build_layout(shape, runs)
     config = configure(catalog, model, layout)
     check = assess(catalog, config)

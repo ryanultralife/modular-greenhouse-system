@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from greenhouse import CatalogError
 
+from .. import catalog_store
 from ..billing import BillingError, create_invoice_for_order
 from ..calendly_actions import CalendlySchedulingError, create_install_link
 from ..db import session_dependency
@@ -54,8 +55,8 @@ def _to_out(order: Order) -> dict:
     }
 
 
-def _build_order(req: OrderCreate) -> Order:
-    result = compute_quote(req.model, req.shape, req.runs)
+def _build_order(db: Session, req: OrderCreate) -> Order:
+    result = compute_quote(catalog_store.load(db), req.model, req.shape, req.runs)
     return Order(
         customer_name=req.customer_name,
         customer_email=req.customer_email,
@@ -83,7 +84,7 @@ def list_orders(status: str | None = None, db: Session = Depends(session_depende
 @router.post("/orders", response_model=OrderOut, status_code=201)
 def create_order(req: OrderCreate, db: Session = Depends(session_dependency)):
     try:
-        order = _build_order(req)
+        order = _build_order(db, req)
     except (CatalogError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     db.add(order)
