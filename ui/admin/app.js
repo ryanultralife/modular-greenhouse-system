@@ -61,6 +61,7 @@ document.querySelectorAll("#tabs button").forEach((b) => {
 });
 
 function onTab(name) {
+  if (name === "setup") loadSetup();
   if (name === "orders") loadOrders();
   if (name === "catalog") loadCatalog();
   if (name === "production") loadFabSessions();
@@ -437,6 +438,7 @@ async function boot() {
     await api("/auth/me");
     showApp();
     await initConfigurator();
+    loadSetup().catch(() => {});  // Go-live is the default tab
   } catch (e) {
     showLogin();
   }
@@ -458,6 +460,7 @@ document.getElementById("login-btn").addEventListener("click", async () => {
     localStorage.setItem("mgs_token", TOKEN);
     showApp();
     await initConfigurator();
+    loadSetup().catch(() => {});
   } catch (e) {
     err.textContent = e.message;
   }
@@ -472,6 +475,36 @@ document.getElementById("logout-btn").addEventListener("click", () => {
   localStorage.removeItem("mgs_token");
   showLogin();
 });
+
+// ---- go-live setup ----
+async function loadSetup() {
+  const data = await api("/setup/status");
+  const banner = document.getElementById("setup-banner");
+  banner.innerHTML = "";
+  banner.append(el("div", { class: "card", style: data.ready ? "border-color:var(--ok)" : "border-color:var(--warn)" },
+    el("h3", { style: "margin:0" }, data.ready ? "Ready to go live ✓" : "Not ready to go live yet"),
+    el("p", { class: "muted", style: "margin:6px 0 0" },
+      data.ready ? "All required steps are done. Do one real test purchase to confirm the full loop."
+                 : "Finish the required (red) items below. Recommended items improve the experience but won't block sales.")));
+
+  const box = document.getElementById("setup-list");
+  box.innerHTML = "";
+  const table = el("table");
+  table.append(el("tr", {}, el("th", {}, ""), el("th", {}, "Step"), el("th", {}, "Status"), el("th", {}, "Where")));
+  data.checks.forEach((c) => {
+    const badge = c.ok
+      ? el("span", { class: "badge ok" }, "done")
+      : el("span", { class: "badge " + (c.required ? "warn" : "muted") }, c.required ? "required" : "recommended");
+    table.append(el("tr", {},
+      el("td", {}, c.ok ? "✓" : (c.required ? "●" : "○")),
+      el("td", {}, el("b", {}, c.label), el("div", { class: "muted" }, c.detail)),
+      el("td", {}, badge),
+      el("td", { class: "muted" }, c.fix)));
+  });
+  box.append(table);
+}
+
+document.getElementById("setup-refresh").addEventListener("click", () => loadSetup().catch((e) => toast(e.message, true)));
 
 // ---- materials needed ----
 document.getElementById("mat-build").addEventListener("click", async () => {

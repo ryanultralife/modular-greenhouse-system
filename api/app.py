@@ -27,6 +27,7 @@ from .routers import (
     production,
     public,
     quotes,
+    setup,
     shipping,
     webhooks,
 )
@@ -88,7 +89,7 @@ def create_app(db_url: str | None = None) -> FastAPI:
     app.include_router(webhooks.router, prefix="/api")
 
     # Admin routers require a valid bearer token.
-    for r in (quotes, orders, catalog, production, integrations, shipping, inventory, presets):
+    for r in (quotes, orders, catalog, production, integrations, shipping, inventory, presets, setup):
         app.include_router(r.router, prefix="/api", dependencies=[Depends(require_admin)])
 
     @app.get("/health")
