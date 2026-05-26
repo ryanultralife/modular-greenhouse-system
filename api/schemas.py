@@ -55,11 +55,22 @@ class QuoteResponse(BaseModel):
 class OrderCreate(QuoteRequest):
     customer_name: str = ""
     customer_email: str = ""
+    source: str = "admin"
+    contact: dict = Field(default_factory=dict)
 
 
 class OrderStatusUpdate(BaseModel):
     status: str | None = None
     fab_session_id: int | None = None
+    create_invoice: bool = False  # create a Stripe invoice as part of this update
+    send_invoice: bool = False  # finalize + send the invoice (otherwise draft)
+
+
+class InvoiceResult(BaseModel):
+    stripe_customer_id: str | None = None
+    stripe_invoice_id: str | None = None
+    stripe_invoice_url: str | None = None
+    stripe_invoice_status: str | None = None
 
 
 class OrderOut(BaseModel):
@@ -71,9 +82,13 @@ class OrderOut(BaseModel):
     shape: str
     runs: list[float]
     status: str
+    source: str
+    contact: dict
     bom: list[dict]
+    quote_lines: list[dict]
     pricing: dict
     engineering: dict
+    external_refs: dict
     fab_session_id: int | None
 
 

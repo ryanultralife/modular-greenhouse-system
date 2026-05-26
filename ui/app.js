@@ -163,8 +163,8 @@ async function loadOrders() {
   if (!orders.length) { box.append(el("p", { class: "muted" }, "No orders yet.")); return; }
 
   const table = el("table");
-  table.append(el("tr", {}, el("th", {}, "#"), el("th", {}, "Customer"), el("th", {}, "Build"),
-    el("th", {}, "Subtotal"), el("th", {}, "Eng."), el("th", {}, "Status"), el("th", {}, "")));
+  table.append(el("tr", {}, el("th", {}, "#"), el("th", {}, "Customer"), el("th", {}, "Src"), el("th", {}, "Build"),
+    el("th", {}, "Subtotal"), el("th", {}, "Eng."), el("th", {}, "Status"), el("th", {}, ""), el("th", {}, "Invoice")));
   orders.forEach((o) => {
     const sel = el("select");
     ["quote", "confirmed", "in_production", "shipped", "cancelled"].forEach((s) =>
@@ -174,14 +174,30 @@ async function loadOrders() {
       catch (e) { toast(e.message, true); }
     } }, "Set");
     const engOk = !o.engineering?.requires_signoff;
+
+    const refs = o.external_refs || {};
+    let invoiceCell;
+    if (refs.stripe_invoice_id) {
+      invoiceCell = refs.stripe_invoice_url
+        ? el("a", { href: refs.stripe_invoice_url, target: "_blank" }, refs.stripe_invoice_status || "invoice")
+        : el("span", { class: "badge ok" }, refs.stripe_invoice_status || "invoiced");
+    } else {
+      invoiceCell = el("button", { onclick: async () => {
+        try { const r = await api(`/orders/${o.id}/invoice`, { method: "POST" }); toast(`Draft invoice ${r.stripe_invoice_id} created`); loadOrders(); }
+        catch (e) { toast(e.message, true); }
+      } }, "Create draft");
+    }
+
     table.append(el("tr", {},
       el("td", {}, "#" + o.id),
       el("td", {}, o.customer_name || "—"),
+      el("td", {}, el("span", { class: "badge muted" }, o.source || "admin")),
       el("td", {}, `${o.model_id} ${o.shape} [${(o.runs || []).join(",")}]`),
       el("td", {}, usd(o.pricing?.verified_subtotal_usd)),
       el("td", {}, el("span", { class: "badge " + (engOk ? "ok" : "warn") }, engOk ? "ok" : "sign-off")),
       el("td", {}, sel),
-      el("td", {}, save)));
+      el("td", {}, save),
+      el("td", {}, invoiceCell)));
   });
   box.append(table);
 }

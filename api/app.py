@@ -7,16 +7,20 @@ Then open http://127.0.0.1:8000/
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import init_db
-from .routers import catalog, integrations, orders, production, quotes
+from .routers import catalog, integrations, orders, production, public, quotes
 
 UI_DIR = Path(__file__).resolve().parents[1] / "ui"
+
+DEFAULT_CORS = "https://www.modulargreenhouses.com,https://modulargreenhouses.com"
 
 
 def create_app(db_url: str | None = None) -> FastAPI:
@@ -27,7 +31,15 @@ def create_app(db_url: str | None = None) -> FastAPI:
     )
     init_db(db_url)
 
-    for r in (quotes, orders, catalog, production, integrations):
+    origins = [o.strip() for o in os.environ.get("MGS_CORS_ORIGINS", DEFAULT_CORS).split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_methods=["GET", "POST"],
+        allow_headers=["*"],
+    )
+
+    for r in (quotes, orders, catalog, production, integrations, public):
         app.include_router(r.router, prefix="/api")
 
     @app.get("/health")

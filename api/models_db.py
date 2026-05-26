@@ -33,8 +33,13 @@ class Order(Base):
 
     # Snapshots taken at creation so history is stable if the catalog changes.
     bom: Mapped[list] = mapped_column(JSON, default=list)
+    quote_lines: Mapped[list] = mapped_column(JSON, default=list)
     pricing: Mapped[dict] = mapped_column(JSON, default=dict)
     engineering: Mapped[dict] = mapped_column(JSON, default=dict)
+
+    source: Mapped[str] = mapped_column(String(20), default="admin")  # admin | website
+    contact: Mapped[dict] = mapped_column(JSON, default=dict)
+    external_refs: Mapped[dict] = mapped_column(JSON, default=dict)  # stripe/quickbooks ids
 
     fab_session_id: Mapped[int | None] = mapped_column(
         ForeignKey("fab_sessions.id"), nullable=True

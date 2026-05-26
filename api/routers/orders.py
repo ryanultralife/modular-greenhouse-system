@@ -8,10 +8,11 @@ from sqlalchemy.orm import Session
 
 from greenhouse import CatalogError
 
+from ..billing import BillingError, create_invoice_for_order
 from ..db import session_dependency
 from ..engine_bridge import compute_quote
 from ..models_db import ORDER_STATUSES, Order
-from ..schemas import OrderCreate, OrderOut, OrderStatusUpdate
+from ..schemas import InvoiceResult, OrderCreate, OrderOut, OrderStatusUpdate
 
 router = APIRouter(tags=["orders"])
 
@@ -26,11 +27,33 @@ def _to_out(order: Order) -> dict:
         "shape": order.shape,
         "runs": order.runs,
         "status": order.status,
+        "source": order.source,
+        "contact": order.contact or {},
         "bom": order.bom,
+        "quote_lines": order.quote_lines or [],
         "pricing": order.pricing,
         "engineering": order.engineering,
+        "external_refs": order.external_refs or {},
         "fab_session_id": order.fab_session_id,
     }
+
+
+def _build_order(req: OrderCreate) -> Order:
+    result = compute_quote(req.model, req.shape, req.runs)
+    return Order(
+        customer_name=req.customer_name,
+        customer_email=req.customer_email,
+        source=req.source,
+        contact=req.contact or {},
+        model_id=result["model_id"],
+        shape=result["shape"],
+        runs=result["runs"],
+        status="quote",
+        bom=result["bom"],
+        quote_lines=result["quote_lines"],
+        pricing=result["pricing"],
+        engineering=result["engineering"],
+    )
 
 
 @router.get("/orders", response_model=list[OrderOut])
@@ -44,21 +67,9 @@ def list_orders(status: str | None = None, db: Session = Depends(session_depende
 @router.post("/orders", response_model=OrderOut, status_code=201)
 def create_order(req: OrderCreate, db: Session = Depends(session_dependency)):
     try:
-        result = compute_quote(req.model, req.shape, req.runs)
+        order = _build_order(req)
     except (CatalogError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    order = Order(
-        customer_name=req.customer_name,
-        customer_email=req.customer_email,
-        model_id=result["model_id"],
-        shape=result["shape"],
-        runs=result["runs"],
-        status="quote",
-        bom=result["bom"],
-        pricing=result["pricing"],
-        engineering=result["engineering"],
-    )
     db.add(order)
     db.commit()
     return _to_out(order)
@@ -89,4 +100,25 @@ def update_order(
     if req.fab_session_id is not None:
         order.fab_session_id = req.fab_session_id or None
     db.commit()
+
+    if req.create_invoice:
+        try:
+            create_invoice_for_order(db, order, send=req.send_invoice)
+        except BillingError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     return _to_out(order)
+
+
+@router.post("/orders/{order_id}/invoice", response_model=InvoiceResult)
+def invoice_order(
+    order_id: int, send: bool = False, db: Session = Depends(session_dependency)
+):
+    order = db.get(Order, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    try:
+        refs = create_invoice_for_order(db, order, send=send)
+    except BillingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return refs

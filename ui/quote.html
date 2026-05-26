@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Design your greenhouse — Modular Greenhouses</title>
+  <link rel="stylesheet" href="/ui/styles.css" />
+  <style>
+    body { background: #fff; }
+    .public-wrap { max-width: 640px; margin: 0 auto; padding: 22px; }
+    .price { font-size: 28px; font-weight: 700; color: var(--green-dark); }
+  </style>
+</head>
+<body>
+  <div class="public-wrap">
+    <h1 id="pub-title">Design your modular greenhouse</h1>
+    <p class="muted" id="pub-company"></p>
+
+    <div class="card">
+      <div class="row">
+        <label>Style <select id="q-model"></select></label>
+        <label>Layout <select id="q-shape"></select></label>
+      </div>
+      <div id="q-runs" class="row"></div>
+      <button id="q-price" class="primary">See estimate</button>
+    </div>
+
+    <div id="q-result"></div>
+
+    <div id="q-form" class="card hidden">
+      <h3>Request this build</h3>
+      <p class="muted">Tell us where to reach you and we'll follow up with a firm quote.</p>
+      <div class="row">
+        <label>Name <input id="q-name" /></label>
+        <label>Email <input id="q-email" type="email" /></label>
+        <label>Phone <input id="q-phone" /></label>
+      </div>
+      <label style="width:100%">Notes <input id="q-message" placeholder="Anything else we should know?" /></label>
+      <div style="margin-top:12px"><button id="q-submit" class="primary">Send my request</button></div>
+    </div>
+  </div>
+
+  <div id="toast" class="hidden"></div>
+  <script src="/ui/quote.js"></script>
+</body>
+</html>

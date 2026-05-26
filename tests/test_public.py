@@ -1,0 +1,65 @@
+import os
+import tempfile
+import unittest
+
+from cryptography.fernet import Fernet
+
+os.environ.setdefault("MGS_SECRET_KEY", Fernet.generate_key().decode())
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from api.app import create_app  # noqa: E402
+
+
+class PublicFlowTest(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        self._tmp.close()
+        self.client = TestClient(create_app(db_url=f"sqlite:///{self._tmp.name}"))
+
+    def tearDown(self):
+        os.unlink(self._tmp.name)
+
+    def test_public_models(self):
+        r = self.client.get("/api/public/models")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("models", r.json())
+
+    def test_public_quote_is_trimmed(self):
+        r = self.client.post("/api/public/quote", json={"model": "barn_6_5", "shape": "straight", "runs": [20]})
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["total_bays"], 5)
+        self.assertIn("engineering_status", data)
+        self.assertNotIn("quote_lines", data)  # internals not exposed publicly
+
+    def test_quote_request_creates_website_lead(self):
+        r = self.client.post("/api/public/quote-request", json={
+            "model": "barn_6_5", "shape": "straight", "runs": [16],
+            "name": "Jane", "email": "jane@example.com",
+        })
+        self.assertEqual(r.status_code, 201)
+        oid = r.json()["order_id"]
+
+        admin = self.client.get(f"/api/orders/{oid}").json()
+        self.assertEqual(admin["source"], "website")
+        self.assertEqual(admin["status"], "quote")
+        self.assertEqual(admin["contact"]["email"], "jane@example.com")
+
+    def test_quote_request_requires_contact(self):
+        r = self.client.post("/api/public/quote-request", json={
+            "model": "barn_6_5", "shape": "straight", "runs": [16], "name": "NoContact",
+        })
+        self.assertEqual(r.status_code, 400)
+
+    def test_invoice_endpoint_without_stripe_returns_400(self):
+        # A single-bay barn is base-kit-only, so its quote is complete (verified
+        # price). Invoicing should then fail on the missing Stripe integration.
+        oid = self.client.post("/api/orders", json={"model": "barn_6_5", "shape": "straight", "runs": [4]}).json()["id"]
+        r = self.client.post(f"/api/orders/{oid}/invoice")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("Stripe", r.json()["detail"])
+
+
+if __name__ == "__main__":
+    unittest.main()
