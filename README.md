@@ -17,7 +17,11 @@ operation.
 | **Orders** | Save quotes as orders with a status lifecycle (quote → confirmed → in_production → shipped). |
 | **Production** | Group orders into a weekly fabrication session; auto-generate the aggregated stock/build list, split into in-house vs. each co-packer. |
 | **Catalog & pricing** | Edit prices, weights, verified flags, and co-packer assignment in the browser — written straight to the catalog. |
-| **Integrations** | Josh adds his own Stripe / Calendly / QuickBooks / custom API keys in the UI. Keys are **encrypted at rest** and validated with a read-only test call. |
+| **Integrations** | Josh adds his own Stripe / Calendly / QuickBooks / SMTP / custom API keys in the UI. Keys are **encrypted at rest** and validated with a read-only test call. |
+| **Billing** | Create a Stripe invoice from a confirmed order (draft, or finalize + send). Sync the same order to QuickBooks Online as a customer + invoice. |
+| **Scheduling** | Generate a Calendly single-use install booking link per order, optionally emailed to the customer. |
+| **Email** | Send order confirmations and install links via the configured SMTP provider. |
+| **Auth** | Admin UI/API behind a login; the public website flow stays open. |
 
 ## Run it
 
@@ -25,6 +29,11 @@ operation.
 ./scripts/run.sh           # installs deps, starts the server
 # then open http://127.0.0.1:8000/
 ```
+
+Set `MGS_ADMIN_PASSWORD` for the admin login (user `admin`). If unset, a random
+password is generated on first run and printed to the logs / stored in the
+git-ignored `data/.admin_password`. The public quote page (`/ui/quote.html`)
+needs no login.
 
 Or manually:
 
@@ -43,14 +52,19 @@ python3 -m greenhouse.cli quote --model barn_6_5 --shape straight --runs 20
 
 ```
 greenhouse/      Pure engine: catalog, layout geometry, configurator, engineering, quoting, CLI
-production/      Pure planner: aggregate orders -> weekly stock list + co-packer split
+production/      Pure logic: weekly stock list + co-packer split; shipment plans
 api/             FastAPI backend (single source of truth, SQLite)
-  routers/         quotes, orders, catalog, production, integrations
+  routers/         auth, quotes, orders, catalog, production, integrations, public, shipping
+  auth.py          Admin login + bearer-token dependency
   security.py      Fernet encryption for integration secrets
-  integrations_providers.py  Stripe/Calendly/QuickBooks/custom adapters + connection tests
-ui/              Static admin UI (vanilla HTML/JS, no build step)
-data/            catalog.json (tracked) + app.db / .secret_key (git-ignored)
-tests/           34 tests (engine, planner, security, full API)
+  billing.py / stripe_client.py        Stripe invoicing
+  quickbooks_sync.py / quickbooks_client.py   QuickBooks Online customer + invoice
+  calendly_actions.py / calendly_client.py    Install scheduling links
+  email_service.py                     SMTP send (confirmations, install links)
+  integrations_providers.py            Provider registry + connection tests
+ui/              Static admin UI + public quote page (vanilla HTML/JS, no build step)
+data/            catalog.json (tracked) + app.db / .secret_key / .admin_password (git-ignored)
+tests/           70 tests (engine, planner, security, auth, email, billing, QBO, Calendly, shipping, full API)
 ```
 
 The engine and planner have **no** web or database dependencies, so they stay
@@ -70,9 +84,16 @@ over the API.
 - **Integration secrets** are encrypted with a master key from `MGS_SECRET_KEY`
   (or an auto-generated, git-ignored `data/.secret_key`). Secrets are never
   logged, never committed, and only ever returned masked.
+- **Admin auth**: every `/api` route except the public website flow and login
+  requires a bearer token issued by `POST /api/auth/login`. The password comes
+  from `MGS_ADMIN_PASSWORD` or a generated, git-ignored `data/.admin_password`.
 - The engineering triage is **not** a structural certification. Non-standard
   builds always require a qualified engineer's sign-off before the published
   ratings are advertised for them.
+- **Live integration actions** (Stripe/QuickBooks invoices, Calendly links,
+  email) are guarded: they need the relevant integration configured, a complete
+  quote where money is involved, are idempotent, and fail with clear messages
+  rather than partial state.
 
 ## Tests
 
@@ -82,7 +103,8 @@ python3 -m unittest discover -s tests
 
 ## Roadmap
 
-- Connect the configurator/quote flow to modulargreenhouses.com (public quote → order)
-- Wire integration adapters into live actions (Stripe invoice on order confirm, QuickBooks sync, Calendly install scheduling)
 - Production calendar + capacity planning per fabrication session
-- Shipping labels / same-day shipping workflow using the per-SKU weights
+- Carrier API integration for real shipping labels + live tracking
+- Multi-user admin accounts and roles (current auth is single-admin)
+- Live end-to-end validation of QuickBooks/Calendly against real credentials
+  (happy paths currently covered by mocked tests)

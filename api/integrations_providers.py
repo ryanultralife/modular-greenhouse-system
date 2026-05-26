@@ -97,6 +97,25 @@ def _quickbooks_test(creds: dict[str, str]) -> tuple[bool | None, str]:
     return False, f"QuickBooks token refresh failed (HTTP {r.status_code})."
 
 
+def _smtp_test(creds: dict[str, str]) -> tuple[bool | None, str]:
+    import smtplib
+
+    host = creds.get("host", "")
+    if not host:
+        return False, "Missing host."
+    port = int(creds.get("port") or 587)
+    use_tls = str(creds.get("use_tls", "true")).strip().lower() not in ("false", "0", "no", "")
+    try:
+        with smtplib.SMTP(host, port, timeout=10) as s:
+            if use_tls:
+                s.starttls()
+            if creds.get("username"):
+                s.login(creds["username"], creds.get("password", ""))
+    except (smtplib.SMTPException, OSError) as exc:
+        return False, f"SMTP test failed: {exc}"
+    return True, "SMTP connection and login OK."
+
+
 def _custom_test(creds: dict[str, str]) -> tuple[bool | None, str]:
     base_url = creds.get("base_url", "")
     if not base_url:
@@ -142,6 +161,19 @@ PROVIDERS: dict[str, Provider] = {
         ),
         _quickbooks_test,
         "https://developer.intuit.com",
+    ),
+    "smtp": Provider(
+        "smtp",
+        "Email (SMTP)",
+        (
+            Field("host", "SMTP host (e.g. smtp.sendgrid.net)"),
+            Field("port", "Port (default 587)"),
+            Field("username", "Username"),
+            Field("password", "Password / API key", secret=True),
+            Field("from_email", "From address"),
+            Field("use_tls", "Use STARTTLS (true/false)"),
+        ),
+        _smtp_test,
     ),
     "custom": Provider(
         "custom",

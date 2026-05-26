@@ -10,13 +10,14 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from .auth import require_admin
 from .db import init_db
-from .routers import catalog, integrations, orders, production, public, quotes, shipping
+from .routers import auth, catalog, integrations, orders, production, public, quotes, shipping
 
 UI_DIR = Path(__file__).resolve().parents[1] / "ui"
 
@@ -39,8 +40,13 @@ def create_app(db_url: str | None = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    for r in (quotes, orders, catalog, production, integrations, public, shipping):
-        app.include_router(r.router, prefix="/api")
+    # Open routers: login and the public website flow.
+    app.include_router(auth.router, prefix="/api")
+    app.include_router(public.router, prefix="/api")
+
+    # Admin routers require a valid bearer token.
+    for r in (quotes, orders, catalog, production, integrations, shipping):
+        app.include_router(r.router, prefix="/api", dependencies=[Depends(require_admin)])
 
     @app.get("/health")
     def health():

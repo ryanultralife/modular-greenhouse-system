@@ -13,9 +13,13 @@ from api.app import create_app  # noqa: E402
 
 class PublicFlowTest(unittest.TestCase):
     def setUp(self):
+        from api.auth import require_admin
+
         self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
         self._tmp.close()
-        self.client = TestClient(create_app(db_url=f"sqlite:///{self._tmp.name}"))
+        app = create_app(db_url=f"sqlite:///{self._tmp.name}")
+        app.dependency_overrides[require_admin] = lambda: "admin"
+        self.client = TestClient(app)
 
     def tearDown(self):
         os.unlink(self._tmp.name)

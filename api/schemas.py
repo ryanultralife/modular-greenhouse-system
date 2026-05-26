@@ -81,6 +81,12 @@ class QuickBooksSyncResult(BaseModel):
 
 class ScheduleResult(BaseModel):
     booking_url: str
+    emailed: bool = False
+
+
+class EmailResult(BaseModel):
+    ok: bool
+    to: str
 
 
 class ShipmentLineOut(BaseModel):

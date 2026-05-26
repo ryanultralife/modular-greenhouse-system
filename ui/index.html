@@ -7,9 +7,21 @@
   <link rel="stylesheet" href="/ui/styles.css" />
 </head>
 <body>
+  <div id="login" class="hidden">
+    <div class="login-card">
+      <h2>Admin sign in</h2>
+      <label>Username <input id="login-user" value="admin" /></label>
+      <label>Password <input id="login-pass" type="password" /></label>
+      <button id="login-btn" class="primary" style="margin-top:10px">Sign in</button>
+      <p id="login-err" class="tbd"></p>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
   <header>
     <h1>Modular Greenhouse System</h1>
     <span id="company" class="muted"></span>
+    <button id="logout-btn" style="margin-left:auto">Sign out</button>
   </header>
 
   <nav id="tabs">
@@ -118,6 +130,7 @@
       <div id="int-list"></div>
     </section>
   </main>
+  </div>
 
   <div id="toast" class="hidden"></div>
   <script src="/ui/app.js"></script>

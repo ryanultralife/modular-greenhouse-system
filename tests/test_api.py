@@ -13,9 +13,12 @@ from api.app import create_app  # noqa: E402
 
 class ApiTest(unittest.TestCase):
     def setUp(self):
+        from api.auth import require_admin
+
         self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
         self._tmp.close()
         app = create_app(db_url=f"sqlite:///{self._tmp.name}")
+        app.dependency_overrides[require_admin] = lambda: "admin"
         self.client = TestClient(app)
 
     def tearDown(self):

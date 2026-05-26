@@ -4,13 +4,19 @@ const API = "/api";
 let MODELS = null;       // {company, models, shapes}
 let LAST_QUOTE = null;   // last computed quote request+result
 let PROVIDERS = [];      // integration providers
+let TOKEN = localStorage.getItem("mgs_token") || "";
 
 // ---- helpers ----------------------------------------------------------
 async function api(path, opts = {}) {
-  const res = await fetch(API + path, {
-    headers: { "Content-Type": "application/json" },
-    ...opts,
-  });
+  const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
+  if (TOKEN) headers["Authorization"] = "Bearer " + TOKEN;
+  const res = await fetch(API + path, { ...opts, headers });
+  if (res.status === 401) {
+    TOKEN = "";
+    localStorage.removeItem("mgs_token");
+    showLogin();
+    throw new Error("Session expired — please sign in again.");
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try { detail = (await res.json()).detail || detail; } catch (e) {}
@@ -411,5 +417,57 @@ async function loadIntegrations() {
   });
 }
 
-// ---- boot -------------------------------------------------------------
-initConfigurator().catch((e) => toast("Failed to load: " + e.message, true));
+// ---- auth + boot ------------------------------------------------------
+function showLogin() {
+  document.getElementById("app").classList.add("hidden");
+  document.getElementById("login").classList.remove("hidden");
+}
+
+function showApp() {
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("app").classList.remove("hidden");
+}
+
+async function boot() {
+  if (!TOKEN) { showLogin(); return; }
+  try {
+    await api("/auth/me");
+    showApp();
+    await initConfigurator();
+  } catch (e) {
+    showLogin();
+  }
+}
+
+document.getElementById("login-btn").addEventListener("click", async () => {
+  const username = document.getElementById("login-user").value;
+  const password = document.getElementById("login-pass").value;
+  const err = document.getElementById("login-err");
+  err.textContent = "";
+  try {
+    const res = await fetch(API + "/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) { err.textContent = "Invalid username or password."; return; }
+    TOKEN = (await res.json()).token;
+    localStorage.setItem("mgs_token", TOKEN);
+    showApp();
+    await initConfigurator();
+  } catch (e) {
+    err.textContent = e.message;
+  }
+});
+
+document.getElementById("login-pass").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("login-btn").click();
+});
+
+document.getElementById("logout-btn").addEventListener("click", () => {
+  TOKEN = "";
+  localStorage.removeItem("mgs_token");
+  showLogin();
+});
+
+boot();

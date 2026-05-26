@@ -12,5 +12,6 @@ venv/
 
 # Secrets and local database — never commit these
 data/.secret_key
+data/.admin_password
 data/app.db
 *.db

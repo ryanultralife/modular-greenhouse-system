@@ -103,6 +103,28 @@ th { color: var(--muted); font-weight: 600; }
 
 .tbd { color: var(--warn); font-size: 12px; }
 
+#login {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.08);
+}
+.login-card input { width: 100%; }
+header { align-items: center; }
+
 #toast {
   position: fixed;
   bottom: 18px;

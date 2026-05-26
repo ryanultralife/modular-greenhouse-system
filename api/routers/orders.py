@@ -11,10 +11,12 @@ from greenhouse import CatalogError
 from ..billing import BillingError, create_invoice_for_order
 from ..calendly_actions import CalendlySchedulingError, create_install_link
 from ..db import session_dependency
+from ..email_service import EmailError, send_email
 from ..engine_bridge import compute_quote
 from ..models_db import ORDER_STATUSES, Order
 from ..quickbooks_sync import QuickBooksSyncError, sync_order
 from ..schemas import (
+    EmailResult,
     InvoiceResult,
     OrderCreate,
     OrderOut,
@@ -22,6 +24,10 @@ from ..schemas import (
     QuickBooksSyncResult,
     ScheduleResult,
 )
+
+
+def _recipient(order: Order) -> str:
+    return (order.contact or {}).get("email") or order.customer_email or ""
 
 router = APIRouter(tags=["orders"])
 
@@ -146,11 +152,53 @@ def quickbooks_sync(order_id: int, db: Session = Depends(session_dependency)):
 
 
 @router.post("/orders/{order_id}/schedule-install", response_model=ScheduleResult)
-def schedule_install(order_id: int, db: Session = Depends(session_dependency)):
+def schedule_install(order_id: int, notify: bool = False, db: Session = Depends(session_dependency)):
     order = db.get(Order, order_id)
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
     try:
-        return {"booking_url": create_install_link(db, order)}
+        booking_url = create_install_link(db, order)
     except CalendlySchedulingError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    emailed = False
+    if notify:
+        to = _recipient(order)
+        name = order.customer_name or "there"
+        html = (
+            f"<p>Hi {name},</p><p>Thanks for your order with Modular Greenhouses. "
+            f"Please pick a time for your install here:</p>"
+            f"<p><a href='{booking_url}'>{booking_url}</a></p>"
+        )
+        try:
+            send_email(db, to, "Schedule your greenhouse install", html)
+            emailed = True
+        except EmailError as exc:
+            raise HTTPException(
+                status_code=400, detail=f"Install link created but the email failed: {exc}"
+            ) from exc
+    return {"booking_url": booking_url, "emailed": emailed}
+
+
+@router.post("/orders/{order_id}/send-confirmation", response_model=EmailResult)
+def send_confirmation(order_id: int, db: Session = Depends(session_dependency)):
+    order = db.get(Order, order_id)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    to = _recipient(order)
+    rows = "".join(
+        f"<li>{l['quantity']} × {l['name']}</li>" for l in (order.bom or [])
+    )
+    subtotal = (order.pricing or {}).get("verified_subtotal_usd", 0)
+    html = (
+        f"<p>Hi {order.customer_name or 'there'},</p>"
+        f"<p>Here is a summary of your {order.model_id} ({order.shape}) order:</p>"
+        f"<ul>{rows}</ul>"
+        f"<p>Estimated subtotal: ${subtotal:,.2f}</p>"
+        f"<p>We'll be in touch with next steps. Thank you!</p>"
+    )
+    try:
+        send_email(db, to, f"Your Modular Greenhouse order #{order.id}", html)
+    except EmailError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "to": to}
