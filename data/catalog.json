@@ -126,5 +126,41 @@
       "price_usd": null,
       "verified_price": false
     }
+  },
+
+  "materials": {
+    "_note": "Raw materials/components consumed by builds. Add the real list here; quantities go in material_bom below. Used for next-week material planning and inventory.",
+    "frame_tube": { "name": "Frame tubing", "unit": "ft" },
+    "poly_panel": { "name": "Polycarbonate panel", "unit": "each" },
+    "piano_hinge": { "name": "Piano hinge", "unit": "each" },
+    "fastener_set": { "name": "Fastener set", "unit": "set" },
+    "cover_film": { "name": "Cover / glazing", "unit": "sqft" }
+  },
+
+  "material_bom": {
+    "_note": "Materials consumed PER SKU. All quantities are PLACEHOLDERS (null). Fill in real per-SKU material usage so weekly material needs compute correctly; null quantities mark the plan 'incomplete'.",
+    "base_kit": [
+      { "material": "frame_tube", "qty": null },
+      { "material": "poly_panel", "qty": null },
+      { "material": "piano_hinge", "qty": null },
+      { "material": "fastener_set", "qty": null }
+    ],
+    "extension_module": [
+      { "material": "frame_tube", "qty": null },
+      { "material": "poly_panel", "qty": null },
+      { "material": "piano_hinge", "qty": null }
+    ],
+    "end_cap": [
+      { "material": "frame_tube", "qty": null },
+      { "material": "poly_panel", "qty": null }
+    ],
+    "door_end": [
+      { "material": "frame_tube", "qty": null },
+      { "material": "poly_panel", "qty": null }
+    ],
+    "junction_kit": [
+      { "material": "frame_tube", "qty": null },
+      { "material": "fastener_set", "qty": null }
+    ]
   }
 }

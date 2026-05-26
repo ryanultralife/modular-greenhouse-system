@@ -1,3 +1,4 @@
+from .materials import MaterialNeed, MaterialPlan, compute_material_needs
 from .planner import (
     AggregatedLine,
     StockList,
@@ -12,4 +13,7 @@ __all__ = [
     "ShipmentLine",
     "ShipmentPlan",
     "build_shipment_plan",
+    "MaterialNeed",
+    "MaterialPlan",
+    "compute_material_needs",
 ]

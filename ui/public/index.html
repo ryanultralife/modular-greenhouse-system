@@ -97,6 +97,14 @@
     </div>
   </section>
 
+  <section class="block" id="ready" style="display:none">
+    <div class="wrap">
+      <h2>Ready to ship</h2>
+      <p class="sub">In-stock presets you can buy now — shipped same or next day.</p>
+      <div class="grid two" id="preset-cards"></div>
+    </div>
+  </section>
+
   <div class="promo">
     <div class="wrap">
       <h3>Build it your way</h3>
@@ -175,6 +183,61 @@
         });
       }
     }).catch(() => { /* keep static fallback */ });
+
+    // Purchase status banner after returning from Stripe Checkout.
+    (function () {
+      const q = new URLSearchParams(location.search).get("purchase");
+      if (!q) return;
+      const t = document.getElementById("toast");
+      t.textContent = q === "success"
+        ? "Payment received — thank you! We'll be in touch about shipping."
+        : "Checkout cancelled — your card was not charged.";
+      t.className = q === "success" ? "" : "err";
+      setTimeout(() => (t.className = "hidden"), 6000);
+    })();
+
+    // Ready-to-ship presets (buyable = priced + in stock).
+    function money(v) { return "$" + Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }); }
+    fetch("/api/public/presets").then(r => r.ok ? r.json() : Promise.reject()).then(data => {
+      const buyable = (data.presets || []).filter(p => p.buyable);
+      if (!buyable.length) return;
+      document.getElementById("ready").style.display = "";
+      const box = document.getElementById("preset-cards");
+      box.innerHTML = "";
+      buyable.forEach(p => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML =
+          `<h3>${p.name}</h3>` +
+          (p.description ? `<p class="muted">${p.description}</p>` : "") +
+          `<div class="price">${money(p.price_usd)}</div>` +
+          `<p class="muted">Ships ${p.ship_speed.replace("_", " ")}</p>`;
+        const btn = document.createElement("button");
+        btn.className = "btn green";
+        btn.style.marginTop = "12px";
+        btn.textContent = "Buy now";
+        btn.addEventListener("click", async () => {
+          const email = prompt("Your email for the receipt:");
+          if (!email) return;
+          btn.disabled = true; btn.textContent = "Redirecting…";
+          try {
+            const res = await fetch("/api/public/checkout", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ preset_id: p.id, email }),
+            });
+            const j = await res.json();
+            if (!res.ok) throw new Error(j.detail || "Checkout failed");
+            location.href = j.checkout_url;
+          } catch (e) {
+            btn.disabled = false; btn.textContent = "Buy now";
+            const t = document.getElementById("toast"); t.textContent = e.message; t.className = "err";
+            setTimeout(() => (t.className = "hidden"), 5000);
+          }
+        });
+        card.appendChild(btn);
+        box.appendChild(card);
+      });
+    }).catch(() => {});
   </script>
 </body>
 </html>

@@ -65,6 +65,9 @@ function onTab(name) {
   if (name === "catalog") loadCatalog();
   if (name === "production") loadFabSessions();
   if (name === "integrations") loadIntegrations();
+  if (name === "inventory") loadInventory();
+  if (name === "presets") loadPresets();
+  if (name === "copacker") loadCopacker();
 }
 
 // ---- configurator -----------------------------------------------------
@@ -468,6 +471,135 @@ document.getElementById("logout-btn").addEventListener("click", () => {
   TOKEN = "";
   localStorage.removeItem("mgs_token");
   showLogin();
+});
+
+// ---- materials needed ----
+document.getElementById("mat-build").addEventListener("click", async () => {
+  const status = document.getElementById("mat-status").value;
+  try {
+    const r = await api(`/production/material-needs?status=${status}`);
+    const box = document.getElementById("mat-result");
+    box.innerHTML = "";
+    box.append(el("p", { class: "muted" }, `${r.order_count} order(s)` + (r.complete ? "" : " — incomplete: some materials have no per-unit quantity set in the catalog")));
+    const table = el("table");
+    table.append(el("tr", {}, el("th", {}, "Material"), el("th", {}, "Qty"), el("th", {}, "Unit")));
+    r.needs.forEach((n) => table.append(el("tr", {}, el("td", {}, n.name), el("td", {}, n.complete ? String(n.quantity) : "?"), el("td", {}, n.unit))));
+    box.append(table);
+  } catch (e) { toast(e.message, true); }
+});
+
+// ---- inventory ----
+async function loadInventory() {
+  const items = await api("/inventory");
+  const box = document.getElementById("inv-list");
+  box.innerHTML = "";
+  if (!items.length) { box.append(el("p", { class: "muted" }, "No inventory items yet.")); return; }
+  const table = el("table");
+  table.append(el("tr", {}, el("th", {}, "Kind"), el("th", {}, "Key"), el("th", {}, "Name"), el("th", {}, "On hand"), el("th", {}, "Unit"), el("th", {}, "Reorder"), el("th", {}, "Co-packer"), el("th", {}, "")));
+  items.forEach((i) => {
+    const onhand = el("input", { type: "number", step: "1", value: i.on_hand, style: "width:80px" });
+    const reorder = el("input", { type: "number", step: "1", value: i.reorder_point, style: "width:70px" });
+    const save = el("button", { onclick: async () => {
+      try { await api("/inventory", { method: "PUT", body: JSON.stringify({ kind: i.kind, key: i.key, name: i.name, on_hand: parseFloat(onhand.value), unit: i.unit, reorder_point: parseFloat(reorder.value), copacker: i.copacker }) }); toast(`Saved ${i.key}`); loadInventory(); }
+      catch (e) { toast(e.message, true); }
+    } }, "Save");
+    table.append(el("tr", { style: i.low ? "background:#fae7d8" : "" },
+      el("td", {}, i.kind), el("td", {}, i.key), el("td", {}, i.name),
+      el("td", {}, onhand), el("td", {}, i.unit), el("td", {}, reorder), el("td", {}, i.copacker || "—"), el("td", {}, save)));
+  });
+  box.append(table);
+}
+
+document.getElementById("inv-save").addEventListener("click", async () => {
+  const body = {
+    kind: document.getElementById("inv-kind").value,
+    key: document.getElementById("inv-key").value.trim(),
+    name: document.getElementById("inv-name").value,
+    on_hand: parseFloat(document.getElementById("inv-onhand").value) || 0,
+    unit: document.getElementById("inv-unit").value || "each",
+    reorder_point: parseFloat(document.getElementById("inv-reorder").value) || 0,
+    copacker: document.getElementById("inv-copacker").value,
+  };
+  if (!body.key) { toast("Key is required", true); return; }
+  try { await api("/inventory", { method: "PUT", body: JSON.stringify(body) }); toast("Saved"); loadInventory(); }
+  catch (e) { toast(e.message, true); }
+});
+
+// ---- presets ----
+async function loadPresets() {
+  const items = await api("/presets");
+  const box = document.getElementById("ps-list");
+  box.innerHTML = "";
+  if (!items.length) { box.append(el("p", { class: "muted" }, "No presets yet.")); return; }
+  const table = el("table");
+  table.append(el("tr", {}, el("th", {}, "Name"), el("th", {}, "Build"), el("th", {}, "Price"), el("th", {}, "Verified"), el("th", {}, "Ship"), el("th", {}, "Stock"), el("th", {}, "Active"), el("th", {}, "")));
+  items.forEach((p) => {
+    const buyable = p.verified_price && p.price_usd && p.on_hand > 0;
+    const del = el("button", { class: "danger", onclick: async () => {
+      try { await api(`/presets/${p.id}`, { method: "DELETE" }); toast("Deleted"); loadPresets(); }
+      catch (e) { toast(e.message, true); }
+    } }, "Delete");
+    table.append(el("tr", {},
+      el("td", {}, p.name),
+      el("td", {}, `${p.model_id || "—"} ${p.shape} [${(p.runs || []).join(",")}]`),
+      el("td", {}, usd(p.price_usd)),
+      el("td", {}, el("span", { class: "badge " + (p.verified_price ? "ok" : "warn") }, p.verified_price ? "yes" : "no")),
+      el("td", {}, p.ship_speed),
+      el("td", {}, String(p.on_hand)),
+      el("td", {}, el("span", { class: "badge " + (buyable ? "ok" : "muted") }, buyable ? "buyable" : (p.active ? "not buyable" : "inactive"))),
+      el("td", {}, del)));
+  });
+  box.append(table);
+  box.append(el("p", { class: "muted" }, "Set stock for a preset in the Inventory tab using key preset:<id>."));
+}
+
+document.getElementById("ps-save").addEventListener("click", async () => {
+  const runs = document.getElementById("ps-runs").value.split(",").map((s) => parseFloat(s.trim())).filter((n) => !isNaN(n));
+  const body = {
+    name: document.getElementById("ps-name").value,
+    model_id: document.getElementById("ps-model").value,
+    shape: document.getElementById("ps-shape").value || "straight",
+    runs,
+    price_usd: document.getElementById("ps-price").value === "" ? null : parseFloat(document.getElementById("ps-price").value),
+    verified_price: document.getElementById("ps-verified").checked,
+    ship_speed: document.getElementById("ps-ship").value,
+  };
+  if (!body.name) { toast("Name required", true); return; }
+  try { await api("/presets", { method: "POST", body: JSON.stringify(body) }); toast("Preset created (set stock in Inventory)"); loadPresets(); }
+  catch (e) { toast(e.message, true); }
+});
+
+// ---- co-packer ----
+async function loadCopacker() {
+  try {
+    const cfg = await api("/copacker/config");
+    document.getElementById("cp-name").value = cfg.name || "";
+    document.getElementById("cp-email").value = cfg.email || "";
+  } catch (e) {}
+  const orders = await api("/copacker/orders");
+  const box = document.getElementById("cp-orders");
+  box.innerHTML = "";
+  if (!orders.length) { box.append(el("p", { class: "muted" }, "No co-packer orders yet.")); return; }
+  const table = el("table");
+  table.append(el("tr", {}, el("th", {}, "#"), el("th", {}, "When"), el("th", {}, "Co-packer"), el("th", {}, "Items"), el("th", {}, "Trigger"), el("th", {}, "Status"), el("th", {}, "Emailed")));
+  orders.forEach((o) => {
+    const items = (o.items || []).map((i) => `${i.quantity}× ${i.name || i.key}`).join(", ");
+    table.append(el("tr", {},
+      el("td", {}, "#" + o.id),
+      el("td", {}, (o.created_at || "").slice(0, 10)),
+      el("td", {}, o.copacker || "—"),
+      el("td", {}, items),
+      el("td", {}, o.trigger),
+      el("td", {}, o.status),
+      el("td", {}, o.emailed ? "yes" : "no")));
+  });
+  box.append(table);
+}
+
+document.getElementById("cp-save").addEventListener("click", async () => {
+  const body = { name: document.getElementById("cp-name").value, email: document.getElementById("cp-email").value };
+  try { await api("/copacker/config", { method: "PUT", body: JSON.stringify(body) }); toast("Co-packer contact saved"); }
+  catch (e) { toast(e.message, true); }
 });
 
 boot();
