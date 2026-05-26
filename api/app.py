@@ -24,6 +24,20 @@ UI_DIR = Path(__file__).resolve().parents[1] / "ui"
 DEFAULT_CORS = "https://www.modulargreenhouses.com,https://modulargreenhouses.com"
 
 
+def _resolve_ui_base() -> Path:
+    """Find the ui/ directory across the locations it can land in (local vs.
+    the Vercel lambda, where cwd / file layout differ)."""
+    here = Path(__file__).resolve().parents[1]
+    candidates = [here, here.parent, Path.cwd(), Path("/var/task")]
+    for base in candidates:
+        if (base / "ui" / "public").is_dir():
+            return base / "ui"
+    return here / "ui"
+
+
+UI_BASE = _resolve_ui_base()
+
+
 def create_app(db_url: str | None = None) -> FastAPI:
     app = FastAPI(
         title="Modular Greenhouse System",
@@ -66,14 +80,25 @@ def create_app(db_url: str | None = None) -> FastAPI:
 
     @app.get("/health")
     def health():
-        return {"status": "ok", "db": "error" if db_error is not None else "ok"}
+        info = {
+            "status": "ok",
+            "db": "error" if db_error is not None else "ok",
+            "ui_base": str(UI_BASE),
+            "has_public": (UI_BASE / "public" / "index.html").is_file(),
+            "has_admin": (UI_BASE / "admin" / "index.html").is_file(),
+        }
+        try:
+            info["root_listing"] = sorted(p.name for p in Path(__file__).resolve().parents[1].iterdir())
+        except OSError as exc:
+            info["root_listing_error"] = str(exc)
+        return info
 
     # Admin SPA at /admin; customer-facing site at / (mounted last as catch-all).
-    admin_dir = UI_DIR / "admin"
-    public_dir = UI_DIR / "public"
-    if admin_dir.exists():
+    admin_dir = UI_BASE / "admin"
+    public_dir = UI_BASE / "public"
+    if admin_dir.is_dir():
         app.mount("/admin", StaticFiles(directory=str(admin_dir), html=True), name="admin")
-    if public_dir.exists():
+    if public_dir.is_dir():
         app.mount("/", StaticFiles(directory=str(public_dir), html=True), name="public")
 
     return app

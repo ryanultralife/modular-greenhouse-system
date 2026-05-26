@@ -11,6 +11,8 @@
           "greenhouse/**",
           "production/**",
           "ui/**",
+          "ui/public/**",
+          "ui/admin/**",
           "data/catalog.json"
         ]
       }
