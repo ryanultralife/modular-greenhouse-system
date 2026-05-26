@@ -12,7 +12,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from .auth import require_admin
@@ -30,7 +30,14 @@ def create_app(db_url: str | None = None) -> FastAPI:
         version="0.2.0",
         description="Configurator, quoting, orders, production, and integrations.",
     )
-    init_db(db_url)
+    # If the DB can't be initialised (e.g. DATABASE_URL unset on Vercel), don't
+    # crash the whole function — load anyway so /health and the UI work, and
+    # return a clear 503 for API calls instead of an opaque 500.
+    db_error: Exception | None = None
+    try:
+        init_db(db_url)
+    except Exception as exc:  # noqa: BLE001
+        db_error = exc
 
     origins = [o.strip() for o in os.environ.get("MGS_CORS_ORIGINS", DEFAULT_CORS).split(",") if o.strip()]
     app.add_middleware(
@@ -39,6 +46,15 @@ def create_app(db_url: str | None = None) -> FastAPI:
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def _db_guard(request, call_next):
+        if db_error is not None and request.url.path.startswith("/api"):
+            return JSONResponse(
+                status_code=503,
+                content={"detail": f"Backend database is not configured: {db_error}"},
+            )
+        return await call_next(request)
 
     # Open routers: login and the public website flow.
     app.include_router(auth.router, prefix="/api")
@@ -50,7 +66,7 @@ def create_app(db_url: str | None = None) -> FastAPI:
 
     @app.get("/health")
     def health():
-        return {"status": "ok"}
+        return {"status": "ok", "db": "error" if db_error is not None else "ok"}
 
     @app.get("/", include_in_schema=False)
     def root():

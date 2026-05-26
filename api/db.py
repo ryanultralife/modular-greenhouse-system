@@ -46,14 +46,23 @@ def init_db(db_url: str | None = None):
     global _engine, _SessionLocal
     url = resolve_url(db_url)
     is_sqlite = url.startswith("sqlite")
-    if is_sqlite:
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    if is_sqlite and os.environ.get("VERCEL"):
+        # SQLite can't be written on Vercel's read-only filesystem.
+        raise RuntimeError(
+            "DATABASE_URL is not set. On Vercel you must set DATABASE_URL to your "
+            "Supabase Postgres connection string (use the pooler URL)."
+        )
 
     kwargs: dict = {"future": True}
     if is_sqlite:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
         kwargs["connect_args"] = {"check_same_thread": False}
     else:
         kwargs["poolclass"] = NullPool  # serverless: one connection per request
+        # Supabase pooler (pgbouncer transaction mode) is incompatible with
+        # client-side prepared statements, so disable them.
+        kwargs["connect_args"] = {"prepare_threshold": None}
 
     _engine = create_engine(url, **kwargs)
     _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
