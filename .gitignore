@@ -15,3 +15,6 @@ data/.secret_key
 data/.admin_password
 data/app.db
 *.db
+
+# Scraped site assets (run scripts/scrape_site.py locally; curate before committing)
+scraped/
