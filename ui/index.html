@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Modular Greenhouse System — Admin</title>
+  <link rel="stylesheet" href="/ui/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Modular Greenhouse System</h1>
+    <span id="company" class="muted"></span>
+  </header>
+
+  <nav id="tabs">
+    <button data-tab="configurator" class="active">Configurator</button>
+    <button data-tab="orders">Orders</button>
+    <button data-tab="catalog">Catalog &amp; Pricing</button>
+    <button data-tab="production">Production</button>
+    <button data-tab="integrations">Integrations</button>
+  </nav>
+
+  <main>
+    <!-- Configurator -->
+    <section id="configurator" class="tab active">
+      <h2>Configure &amp; quote</h2>
+      <div class="row">
+        <label>Model
+          <select id="cfg-model"></select>
+        </label>
+        <label>Shape
+          <select id="cfg-shape"></select>
+        </label>
+      </div>
+      <div id="cfg-runs" class="row"></div>
+      <button id="cfg-quote" class="primary">Get quote</button>
+      <div id="cfg-result"></div>
+      <div id="cfg-save" class="hidden card">
+        <h3>Save as order</h3>
+        <div class="row">
+          <label>Customer name <input id="cfg-cust-name" /></label>
+          <label>Customer email <input id="cfg-cust-email" /></label>
+        </div>
+        <button id="cfg-save-btn" class="primary">Save order</button>
+      </div>
+    </section>
+
+    <!-- Orders -->
+    <section id="orders" class="tab">
+      <h2>Orders</h2>
+      <div class="row">
+        <label>Filter status
+          <select id="orders-filter">
+            <option value="">all</option>
+            <option value="quote">quote</option>
+            <option value="confirmed">confirmed</option>
+            <option value="in_production">in_production</option>
+            <option value="shipped">shipped</option>
+            <option value="cancelled">cancelled</option>
+          </select>
+        </label>
+        <button id="orders-refresh">Refresh</button>
+      </div>
+      <div id="orders-list"></div>
+    </section>
+
+    <!-- Catalog -->
+    <section id="catalog" class="tab">
+      <h2>Catalog &amp; pricing</h2>
+      <p class="muted">Set real prices, weights, and co-packer assignment. Flip
+        "verified" once a price is real — unverified prices stay out of quote totals.</p>
+      <div id="catalog-models"></div>
+      <h3>Configuration limits (engineering triage)</h3>
+      <p class="muted">Enter the largest run / footprint / junction count your
+        existing engineering already covers, then mark verified.</p>
+      <div id="catalog-limits"></div>
+    </section>
+
+    <!-- Production -->
+    <section id="production" class="tab">
+      <h2>Production planning</h2>
+      <div class="card">
+        <h3>New fabrication session</h3>
+        <div class="row">
+          <label>Week of <input id="fab-week" type="date" /></label>
+          <label>Label <input id="fab-label" placeholder="e.g. Week 22 build" /></label>
+          <button id="fab-create" class="primary">Create session</button>
+        </div>
+      </div>
+      <div id="fab-sessions"></div>
+      <div class="card">
+        <h3>Ad-hoc stock list by status</h3>
+        <div class="row">
+          <label>Status
+            <select id="stock-status">
+              <option value="confirmed">confirmed</option>
+              <option value="in_production">in_production</option>
+              <option value="quote">quote</option>
+            </select>
+          </label>
+          <button id="stock-build">Build stock list</button>
+        </div>
+        <div id="stock-result"></div>
+      </div>
+    </section>
+
+    <!-- Integrations -->
+    <section id="integrations" class="tab">
+      <h2>Integrations</h2>
+      <p class="muted">Add your own API keys. They are encrypted at rest and
+        never shown again in full. Use "Test" to confirm a key works.</p>
+      <div class="card">
+        <h3>Add / update credentials</h3>
+        <label>Provider <select id="int-provider"></select></label>
+        <div id="int-fields"></div>
+        <button id="int-save" class="primary">Save credentials</button>
+      </div>
+      <div id="int-list"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="hidden"></div>
+  <script src="/ui/app.js"></script>
+</body>
+</html>
