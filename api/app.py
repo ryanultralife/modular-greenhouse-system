@@ -12,7 +12,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .auth import require_admin
@@ -68,12 +68,13 @@ def create_app(db_url: str | None = None) -> FastAPI:
     def health():
         return {"status": "ok", "db": "error" if db_error is not None else "ok"}
 
-    @app.get("/", include_in_schema=False)
-    def root():
-        return RedirectResponse(url="/ui/")
-
-    if UI_DIR.exists():
-        app.mount("/ui", StaticFiles(directory=str(UI_DIR), html=True), name="ui")
+    # Admin SPA at /admin; customer-facing site at / (mounted last as catch-all).
+    admin_dir = UI_DIR / "admin"
+    public_dir = UI_DIR / "public"
+    if admin_dir.exists():
+        app.mount("/admin", StaticFiles(directory=str(admin_dir), html=True), name="admin")
+    if public_dir.exists():
+        app.mount("/", StaticFiles(directory=str(public_dir), html=True), name="public")
 
     return app
 

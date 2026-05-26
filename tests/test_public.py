@@ -27,7 +27,29 @@ class PublicFlowTest(unittest.TestCase):
     def test_public_models(self):
         r = self.client.get("/api/public/models")
         self.assertEqual(r.status_code, 200)
-        self.assertIn("models", r.json())
+        body = r.json()
+        self.assertIn("models", body)
+        self.assertIn("envelope", body)
+        self.assertEqual(body["envelope"]["wind_mph"], 130)
+        # base price is exposed for verified-priced models
+        barn = next(m for m in body["models"] if m["id"] == "barn_6_5")
+        self.assertEqual(barn["base_price_usd"], 1699)
+
+    def test_customer_site_served_at_root(self):
+        r = self.client.get("/")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("Modular", r.text)
+        self.assertEqual(self.client.get("/configure.html").status_code, 200)
+
+    def test_admin_app_served_under_admin(self):
+        r = self.client.get("/admin/")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("Admin", r.text)
+
+    def test_api_still_routes_under_root_mount(self):
+        # The catch-all "/" static mount must not shadow the API.
+        self.assertEqual(self.client.get("/api/public/models").status_code, 200)
+        self.assertEqual(self.client.get("/health").status_code, 200)
 
     def test_public_quote_is_trimmed(self):
         r = self.client.post("/api/public/quote", json={"model": "barn_6_5", "shape": "straight", "runs": [20]})
