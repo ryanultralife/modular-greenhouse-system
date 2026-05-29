@@ -20,6 +20,7 @@ from .db import init_db
 from .routers import (
     auth,
     catalog,
+    help as help_router,
     integrations,
     inventory,
     orders,
@@ -95,7 +96,7 @@ def create_app(db_url: str | None = None) -> FastAPI:
         app.include_router(r.router, prefix="/api", dependencies=[Depends(require_owner)])
 
     # Staff + owner routers: the operational work board and the lists behind it.
-    for r in (work, inventory, production, shipping):
+    for r in (work, inventory, production, shipping, help_router):
         app.include_router(r.router, prefix="/api", dependencies=[Depends(require_staff)])
 
     @app.get("/health")
