@@ -35,13 +35,14 @@
   <section class="block">
     <div class="wrap">
       <h2>Design your greenhouse</h2>
-      <p class="sub">Pick a model, a layout, and the length of each section for an instant estimate.
-        Then send us your details and we'll follow up with a firm quote.</p>
+      <p class="sub">Pick a model and a shape, then enter the length of each arm for an instant
+        estimate. Lengths are in 4-foot increments. We'll follow up with a firm quote.</p>
 
       <div class="cfg">
         <div class="card">
           <label class="fld"><span>Model</span><select id="model"></select></label>
-          <label class="fld"><span>Layout</span><select id="shape"></select></label>
+          <label class="fld"><span>Shape</span><select id="shape"></select></label>
+          <div id="shape-guide" class="shape-guide"></div>
           <div id="runs"></div>
           <button class="btn lg" id="estimate-btn">See estimate</button>
         </div>
@@ -51,7 +52,8 @@
 
           <div id="lead" class="card hidden" style="margin-top:20px;">
             <h3>Request a firm quote</h3>
-            <p class="muted" style="margin-top:0">We'll confirm pricing and engineering for your exact build.</p>
+            <p class="muted" style="margin-top:0">We'll review your design, confirm pricing and
+              engineering for your exact build, and follow up within 1 business day by email or phone.</p>
             <label class="fld"><span>Name</span><input id="f-name" /></label>
             <label class="fld"><span>Email</span><input id="f-email" type="email" /></label>
             <label class="fld"><span>Phone</span><input id="f-phone" /></label>

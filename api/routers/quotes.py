@@ -5,8 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from greenhouse import Catalog, CatalogError
-from greenhouse.models import SHAPE_RUN_COUNTS
+from greenhouse import Catalog, CatalogError, shape_options
 
 from .. import catalog_store
 from ..db import session_dependency
@@ -31,7 +30,7 @@ def list_models(db: Session = Depends(session_dependency)):
     return {
         "company": catalog.company,
         "models": models,
-        "shapes": [{"name": s, "runs": n} for s, n in SHAPE_RUN_COUNTS.items()],
+        "shapes": shape_options(),
     }
 
 

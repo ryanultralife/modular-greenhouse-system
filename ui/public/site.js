@@ -47,32 +47,57 @@ async function init() {
   const m = document.getElementById("model");
   MODELS.models.forEach((x) => m.append(el("option", { value: x.id }, x.name)));
   const s = document.getElementById("shape");
-  MODELS.shapes.forEach((x) => s.append(el("option", { value: x.name }, `${x.name} (${x.runs} section${x.runs > 1 ? "s" : ""})`)));
-  s.addEventListener("change", renderRuns);
-  renderRuns();
+  MODELS.shapes.forEach((x) => s.append(el("option", { value: x.name }, x.label || x.name)));
+  s.addEventListener("change", renderShape);
+  renderShape();
 }
 
-function renderRuns() {
-  const shape = document.getElementById("shape").value;
-  const n = MODELS.shapes.find((x) => x.name === shape)?.runs || 1;
+// Inline SVG diagrams per shape (match the homepage), keyed by shape name.
+const SHAPE_SVG = {
+  straight: '<rect x="20" y="40" width="80" height="20" rx="3" fill="#8cc63f"/>',
+  L: '<rect x="20" y="20" width="20" height="60" rx="3" fill="#8cc63f"/><rect x="20" y="60" width="70" height="20" rx="3" fill="#8cc63f"/>',
+  T: '<rect x="15" y="40" width="90" height="20" rx="3" fill="#8cc63f"/><rect x="50" y="60" width="20" height="32" rx="3" fill="#8cc63f"/>',
+  X: '<rect x="15" y="40" width="90" height="20" rx="3" fill="#8cc63f"/><rect x="50" y="10" width="20" height="80" rx="3" fill="#8cc63f"/>',
+};
+
+function currentShape() {
+  const name = document.getElementById("shape").value;
+  return MODELS.shapes.find((x) => x.name === name) || { name, runs: 1, arm_labels: ["Length"] };
+}
+
+function renderShape() {
+  const shape = currentShape();
+  const guide = document.getElementById("shape-guide");
+  guide.innerHTML =
+    `<svg viewBox="0 0 120 100" role="img" aria-label="${shape.label || shape.name} diagram">${SHAPE_SVG[shape.name] || ""}</svg>` +
+    `<div class="shape-guide-text"><b>${shape.label || shape.name}</b><br>${shape.description || ""}</div>`;
+  renderRuns(shape);
+}
+
+function renderRuns(shape) {
+  const labels = shape.arm_labels || [];
   const box = document.getElementById("runs");
   box.innerHTML = "";
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < shape.runs; i++) {
+    const label = labels[i] || `Arm ${i + 1}`;
     box.append(el("label", { class: "fld" },
-      el("span", {}, `Section ${i + 1} length (ft)`),
+      el("span", {}, `${label} length (ft)`),
       el("input", { type: "number", min: "4", step: "4", value: "8", class: "run" })));
   }
+  box.append(el("p", { class: "hint" }, "Lengths in 4-foot increments (4, 8, 12, …)."));
 }
 
 document.getElementById("estimate-btn").addEventListener("click", async () => {
   const runs = [...document.querySelectorAll(".run")].map((i) => parseFloat(i.value));
-  if (runs.some((r) => !r || r <= 0)) { toast("Enter a length for each section.", true); return; }
+  if (runs.some((r) => !r || r < 4)) { toast("Each arm must be at least 4 ft.", true); return; }
+  if (runs.some((r) => r % 4 !== 0)) { toast("Lengths must be in 4-foot increments (4, 8, 12, …).", true); return; }
   const body = { model: document.getElementById("model").value, shape: document.getElementById("shape").value, runs };
   try {
     const q = await api("/quote", { method: "POST", body: JSON.stringify(body) });
     LAST = body;
     renderEstimate(q);
     document.getElementById("lead").classList.remove("hidden");
+    document.getElementById("estimate").scrollIntoView({ behavior: "smooth", block: "nearest" });
   } catch (e) { toast(e.message, true); }
 });
 
