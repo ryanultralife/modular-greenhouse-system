@@ -109,7 +109,11 @@ def _principal(creds: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(a
         payload = security.decrypt_dict(creds.credentials)
     except ValueError as exc:
         raise _unauthorized("Invalid token") from exc
-    if int(payload.get("exp", 0)) < int(time.time()):
+    try:
+        expired = int(payload.get("exp", 0)) < int(time.time())
+    except (TypeError, ValueError):
+        expired = True  # malformed/missing expiry -> treat as expired, not a 500
+    if expired:
         raise _unauthorized("Session expired")
     role = payload.get("role")
     if role not in ROLES:
