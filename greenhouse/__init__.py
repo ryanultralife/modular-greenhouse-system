@@ -7,7 +7,7 @@ Public API:
 from .catalog import Catalog, CatalogError
 from .configurator import Configuration, BomLine, configure, footprint_sqft
 from .engineering import EngineeringCheck, assess
-from .models import Layout, Run, Junction, build_layout
+from .models import Layout, Run, Junction, build_layout, shape_options, SHAPE_INFO
 from .quote import Quote, QuoteLine, build_quote
 
 __all__ = [
@@ -23,6 +23,8 @@ __all__ = [
     "Run",
     "Junction",
     "build_layout",
+    "shape_options",
+    "SHAPE_INFO",
     "Quote",
     "QuoteLine",
     "build_quote",

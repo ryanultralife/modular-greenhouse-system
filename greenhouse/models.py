@@ -98,8 +98,52 @@ def x_shape(arm_a_ft: float, arm_b_ft: float, arm_c_ft: float, arm_d_ft: float) 
     )
 
 
+# Single source of truth for shape presentation: how many run lengths each
+# shape needs, plus customer-facing label, description, and per-arm labels.
+SHAPE_INFO = {
+    "straight": {
+        "label": "Straight",
+        "runs": 1,
+        "description": "A single run — extend it to any length.",
+        "arm_labels": ["Length"],
+    },
+    "L": {
+        "label": "L-shape",
+        "runs": 2,
+        "description": "Two arms meeting at a 90° corner.",
+        "arm_labels": ["First arm", "Second arm"],
+    },
+    "T": {
+        "label": "T-shape",
+        "runs": 3,
+        "description": "A main run with a branch off the middle.",
+        "arm_labels": ["Main run — side A", "Main run — side B", "Branch"],
+    },
+    "X": {
+        "label": "X / cross",
+        "runs": 4,
+        "description": "Four arms meeting at a central hub.",
+        "arm_labels": ["Arm 1", "Arm 2", "Arm 3", "Arm 4"],
+    },
+}
+
 # Maps a shape name to the number of run lengths the caller must supply.
-SHAPE_RUN_COUNTS = {"straight": 1, "L": 2, "T": 3, "X": 4}
+SHAPE_RUN_COUNTS = {name: info["runs"] for name, info in SHAPE_INFO.items()}
+
+
+def shape_options() -> list[dict]:
+    """Serializable shape metadata for APIs/UIs (single source of truth)."""
+    return [
+        {
+            "name": name,
+            "label": info["label"],
+            "runs": info["runs"],
+            "description": info["description"],
+            "arm_labels": info["arm_labels"],
+        }
+        for name, info in SHAPE_INFO.items()
+    ]
+
 
 SHAPE_BUILDERS = {
     "straight": straight,

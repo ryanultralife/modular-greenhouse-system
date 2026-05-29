@@ -13,8 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from greenhouse import Catalog, CatalogError
-from greenhouse.models import SHAPE_RUN_COUNTS
+from greenhouse import Catalog, CatalogError, shape_options
 
 from .. import catalog_store, checkout as checkout_svc, inventory_store
 from ..checkout import CheckoutError
@@ -68,7 +67,7 @@ def public_models(db: Session = Depends(session_dependency)):
             "warranty_years": (env.get("warranty_years") or {}).get("value"),
         },
         "models": models,
-        "shapes": [{"name": s, "runs": n} for s, n in SHAPE_RUN_COUNTS.items()],
+        "shapes": shape_options(),
     }
 
 

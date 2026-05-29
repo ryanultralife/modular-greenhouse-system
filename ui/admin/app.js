@@ -83,7 +83,7 @@ async function initConfigurator() {
 
   const shapeSel = document.getElementById("cfg-shape");
   shapeSel.innerHTML = "";
-  MODELS.shapes.forEach((s) => shapeSel.append(el("option", { value: s.name }, `${s.name} (${s.runs} run${s.runs > 1 ? "s" : ""})`)));
+  MODELS.shapes.forEach((s) => shapeSel.append(el("option", { value: s.name }, `${s.label || s.name} (${s.runs} run${s.runs > 1 ? "s" : ""})`)));
   shapeSel.addEventListener("change", renderRunInputs);
   renderRunInputs();
 }
