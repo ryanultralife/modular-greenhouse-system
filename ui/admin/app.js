@@ -5,6 +5,7 @@ let MODELS = null;       // {company, models, shapes}
 let LAST_QUOTE = null;   // last computed quote request+result
 let PROVIDERS = [];      // integration providers
 let TOKEN = localStorage.getItem("mgs_token") || "";
+let ROLE = "owner";      // set from /auth/me on boot
 
 // ---- helpers ----------------------------------------------------------
 async function api(path, opts = {}) {
@@ -61,6 +62,7 @@ document.querySelectorAll("#tabs button").forEach((b) => {
 });
 
 function onTab(name) {
+  if (name === "work") loadWork();
   if (name === "setup") loadSetup();
   if (name === "orders") loadOrders();
   if (name === "catalog") loadCatalog();
@@ -69,6 +71,19 @@ function onTab(name) {
   if (name === "inventory") loadInventory();
   if (name === "presets") loadPresets();
   if (name === "copacker") loadCopacker();
+  if (name === "staff") loadStaff();
+}
+
+function activateTab(name) {
+  document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("active", x.dataset.tab === name));
+  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("active", x.id === name));
+  onTab(name);
+}
+
+function applyRole() {
+  const isOwner = ROLE === "owner";
+  document.querySelectorAll(".owner-only").forEach((e) => { e.style.display = isOwner ? "" : "none"; });
+  activateTab("work");  // everyone lands on Today
 }
 
 // ---- configurator -----------------------------------------------------
@@ -432,13 +447,168 @@ function showApp() {
   document.getElementById("app").classList.remove("hidden");
 }
 
+// ---- Today / work board ----
+function workOrderRow(o, actionBtn) {
+  const cells = [
+    el("td", {}, "#" + o.order_id),
+    el("td", {}, o.customer_name),
+    el("td", {}, `${o.model_id} ${o.shape} [${(o.runs || []).join(",")}]`),
+    el("td", {}, o.status + (o.is_preset ? " · preset" : "")),
+  ];
+  if (actionBtn) cells.push(el("td", {}, actionBtn));
+  return el("tr", {}, ...cells);
+}
+
+async function loadWork() {
+  const box = document.getElementById("work-board");
+  let b;
+  try { b = await api("/work/board"); }
+  catch (e) { box.innerHTML = ""; box.append(el("p", { class: "muted" }, e.message)); return; }
+  box.innerHTML = "";
+
+  // 1. New paid orders -> start build
+  const np = el("div", { class: "card" });
+  np.append(el("h3", {}, `New paid orders (${b.new_paid.count})`));
+  if (!b.new_paid.orders.length) np.append(el("p", { class: "muted" }, "Nothing waiting to start."));
+  else {
+    const t = el("table");
+    t.append(el("tr", {}, el("th", {}, "#"), el("th", {}, "Customer"), el("th", {}, "Build"), el("th", {}, "Status"), el("th", {}, "")));
+    b.new_paid.orders.forEach((o) => t.append(workOrderRow(o, el("button", { class: "primary", onclick: () => startBuild(o.order_id) }, "Start build"))));
+    np.append(t);
+  }
+  box.append(np);
+
+  // 2. Build this week
+  const fab = el("div", { class: "card" });
+  fab.append(el("h3", {}, `Build this week (${b.fabricate.count} order${b.fabricate.count === 1 ? "" : "s"})`));
+  if (b.fabricate.build_items.length) {
+    fab.append(el("p", { class: "muted" }, "Sections to fabricate:"));
+    const t = el("table");
+    t.append(el("tr", {}, el("th", {}, "Qty"), el("th", {}, "Item")));
+    b.fabricate.build_items.forEach((i) => t.append(el("tr", {}, el("td", {}, String(i.quantity)), el("td", {}, i.name))));
+    fab.append(t);
+  }
+  if (b.fabricate.materials.length) {
+    fab.append(el("p", { class: "muted" }, "Materials needed" + (b.fabricate.materials_complete ? ":" : " (incomplete — some per-unit quantities not set):")));
+    const t = el("table");
+    t.append(el("tr", {}, el("th", {}, "Material"), el("th", {}, "Qty"), el("th", {}, "Unit")));
+    b.fabricate.materials.forEach((m) => t.append(el("tr", {}, el("td", {}, m.name), el("td", {}, m.complete ? String(m.quantity) : "?"), el("td", {}, m.unit))));
+    fab.append(t);
+  }
+  if (!b.fabricate.build_items.length && !b.fabricate.materials.length) fab.append(el("p", { class: "muted" }, "Nothing in the build pipeline."));
+  box.append(fab);
+
+  // 3. Ready to ship
+  const rs = el("div", { class: "card" });
+  rs.append(el("h3", {}, `Ready to ship (${b.ready_to_ship.count})`));
+  if (!b.ready_to_ship.orders.length) rs.append(el("p", { class: "muted" }, "Nothing ready to ship."));
+  else {
+    const t = el("table");
+    t.append(el("tr", {}, el("th", {}, "#"), el("th", {}, "Customer"), el("th", {}, "Build"), el("th", {}, "Weight"), el("th", {}, "")));
+    b.ready_to_ship.orders.forEach((o) => t.append(el("tr", {},
+      el("td", {}, "#" + o.order_id), el("td", {}, o.customer_name),
+      el("td", {}, `${o.model_id} ${o.shape}`),
+      el("td", {}, o.total_weight_lb == null ? "—" : o.total_weight_lb + " lb"),
+      el("td", {}, el("button", { class: "primary", onclick: () => shipFromWork(o.order_id) }, "Mark shipped")))));
+    rs.append(t);
+  }
+  box.append(rs);
+
+  // 4. Restock
+  const rst = el("div", { class: "card" });
+  rst.append(el("h3", {}, "Restock"));
+  if (b.restock.low_stock.length) {
+    rst.append(el("p", { class: "muted" }, "Low / out of stock:"));
+    const t = el("table");
+    t.append(el("tr", {}, el("th", {}, "Item"), el("th", {}, "On hand"), el("th", {}, "Reorder at"), el("th", {}, "Co-packer")));
+    b.restock.low_stock.forEach((i) => t.append(el("tr", {}, el("td", {}, i.name || i.key), el("td", {}, `${i.on_hand} ${i.unit}`), el("td", {}, String(i.reorder_point)), el("td", {}, i.copacker || "—"))));
+    rst.append(t);
+  } else rst.append(el("p", { class: "muted" }, "Everything above reorder point."));
+  if (b.restock.pending_copacker.length) {
+    rst.append(el("p", { class: "muted" }, "Pending co-packer orders:"));
+    b.restock.pending_copacker.forEach((c) => {
+      const items = (c.items || []).map((i) => `${i.quantity}× ${i.name || i.key}`).join(", ");
+      rst.append(el("div", { class: "muted" }, `#${c.id} ${c.copacker || ""} — ${items} (${c.status})`));
+    });
+  }
+  box.append(rst);
+}
+
+async function startBuild(id) {
+  try { await api(`/work/orders/${id}/start`, { method: "POST" }); toast(`Order #${id} → in production`); loadWork(); }
+  catch (e) { toast(e.message, true); }
+}
+
+async function shipFromWork(id) {
+  const carrier = prompt("Carrier (e.g. UPS):", "UPS");
+  if (carrier === null) return;
+  const tracking = prompt("Tracking number (optional):", "") || "";
+  try { const r = await api(`/orders/${id}/ship`, { method: "POST", body: JSON.stringify({ carrier, tracking }) }); toast(`Order #${id} shipped${r.shipping?.same_day ? " (same-day)" : ""}`); loadWork(); }
+  catch (e) { toast(e.message, true); }
+}
+
+document.getElementById("work-refresh").addEventListener("click", () => loadWork().catch((e) => toast(e.message, true)));
+
+// ---- staff accounts (owner only) ----
+async function loadStaff() {
+  const items = await api("/staff");
+  const box = document.getElementById("staff-list");
+  box.innerHTML = "";
+  if (!items.length) { box.append(el("p", { class: "muted" }, "No staff accounts yet.")); return; }
+  const table = el("table");
+  table.append(el("tr", {}, el("th", {}, "Username"), el("th", {}, "Role"), el("th", {}, "Active"), el("th", {}, "")));
+  items.forEach((u) => {
+    const toggle = el("button", { onclick: async () => {
+      try { await api(`/staff/${u.id}`, { method: "PATCH", body: JSON.stringify({ active: !u.active }) }); toast("Updated"); loadStaff(); }
+      catch (e) { toast(e.message, true); }
+    } }, u.active ? "Disable" : "Enable");
+    const reset = el("button", { onclick: async () => {
+      const pw = prompt(`New password for ${u.username}:`);
+      if (!pw) return;
+      try { await api(`/staff/${u.id}`, { method: "PATCH", body: JSON.stringify({ password: pw }) }); toast("Password reset"); }
+      catch (e) { toast(e.message, true); }
+    } }, "Reset pw");
+    const del = el("button", { class: "danger", onclick: async () => {
+      try { await api(`/staff/${u.id}`, { method: "DELETE" }); toast("Removed"); loadStaff(); }
+      catch (e) { toast(e.message, true); }
+    } }, "Remove");
+    table.append(el("tr", {}, el("td", {}, u.username), el("td", {}, u.role),
+      el("td", {}, el("span", { class: "badge " + (u.active ? "ok" : "muted") }, u.active ? "active" : "disabled")),
+      el("td", {}, toggle, " ", reset, " ", del)));
+  });
+  box.append(table);
+}
+
+document.getElementById("staff-add").addEventListener("click", async () => {
+  const username = document.getElementById("staff-user").value.trim();
+  const password = document.getElementById("staff-pass").value;
+  if (!username || !password) { toast("Username and password required", true); return; }
+  try {
+    await api("/staff", { method: "POST", body: JSON.stringify({ username, password }) });
+    toast("Staff member added");
+    document.getElementById("staff-user").value = "";
+    document.getElementById("staff-pass").value = "";
+    loadStaff();
+  } catch (e) { toast(e.message, true); }
+});
+
+async function afterAuth() {
+  const me = await api("/auth/me");
+  ROLE = me.role || "owner";
+  showApp();
+  applyRole();
+  if (ROLE === "owner") {
+    await initConfigurator();   // /models is owner-only
+  } else {
+    document.getElementById("company").textContent = "Staff";
+  }
+  loadWork().catch(() => {});   // everyone lands on Today
+}
+
 async function boot() {
   if (!TOKEN) { showLogin(); return; }
   try {
-    await api("/auth/me");
-    showApp();
-    await initConfigurator();
-    loadSetup().catch(() => {});  // Go-live is the default tab
+    await afterAuth();
   } catch (e) {
     showLogin();
   }
@@ -458,9 +628,7 @@ document.getElementById("login-btn").addEventListener("click", async () => {
     if (!res.ok) { err.textContent = "Invalid username or password."; return; }
     TOKEN = (await res.json()).token;
     localStorage.setItem("mgs_token", TOKEN);
-    showApp();
-    await initConfigurator();
-    loadSetup().catch(() => {});
+    await afterAuth();
   } catch (e) {
     err.textContent = e.message;
   }

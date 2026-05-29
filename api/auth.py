@@ -1,16 +1,21 @@
-"""Admin authentication.
+"""Authentication and roles.
 
-Single-admin model suited to a small business: a username (default "admin")
-and a password. The password comes from MGS_ADMIN_PASSWORD, or — if unset — a
-random one generated on first run and stored in a git-ignored file (logged
-once so Josh can read it). Login issues a Fernet-encrypted bearer token
-(tamper-proof, with an expiry); admin endpoints require it.
+Two roles:
+  * owner — full access (secrets, pricing, integrations). Authenticates with
+    MGS_ADMIN_PASSWORD (or a generated, git-ignored file) as user "admin".
+  * staff — operational access only (work board, inventory, production,
+    shipping). Staff are DB accounts the owner creates; passwords are stored
+    salted+hashed (PBKDF2, stdlib — no new dependency).
 
-Public endpoints (/api/public/*), /health, and the static UI are NOT protected.
+Login issues a Fernet-encrypted bearer token carrying the username + role with
+an expiry. Public endpoints (/api/public/*), /health, login, and the static UI
+are not protected.
 """
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import os
 import secrets
 import stat
@@ -18,19 +23,47 @@ import time
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from . import security
+from .db import session_dependency
+from .models_db import ROLES, User
 
 PW_FILE = security.DATA_DIR / ".admin_password"
 ADMIN_USER = os.environ.get("MGS_ADMIN_USER", "admin")
 TOKEN_TTL_SECONDS = int(os.environ.get("MGS_TOKEN_TTL", str(12 * 3600)))
+
+PBKDF2_ROUNDS = 200_000
 
 
 def _unauthorized(detail: str = "Not authenticated") -> HTTPException:
     return HTTPException(status_code=401, detail=detail, headers={"WWW-Authenticate": "Bearer"})
 
 
-def _resolve_password() -> str:
+def _forbidden(detail: str = "Owner access required") -> HTTPException:
+    return HTTPException(status_code=403, detail=detail)
+
+
+# ---- password hashing (staff accounts) ----
+def hash_password(password: str) -> str:
+    salt = os.urandom(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, PBKDF2_ROUNDS)
+    return f"{salt.hex()}:{dk.hex()}"
+
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        salt_hex, dk_hex = stored.split(":", 1)
+        salt = bytes.fromhex(salt_hex)
+    except (ValueError, TypeError):
+        return False
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, PBKDF2_ROUNDS)
+    return hmac.compare_digest(dk.hex(), dk_hex)
+
+
+# ---- owner password (env / generated file) ----
+def _resolve_owner_password() -> str:
     pw = os.environ.get("MGS_ADMIN_PASSWORD")
     if pw:
         return pw
@@ -42,43 +75,57 @@ def _resolve_password() -> str:
         PW_FILE.write_text(pw)
         PW_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0600
     except OSError as exc:
-        # Read-only filesystem (e.g. serverless): a per-instance password is
-        # useless, so require an explicit one.
         raise RuntimeError(
             "MGS_ADMIN_PASSWORD is not set and a password file could not be "
             "written. Set the MGS_ADMIN_PASSWORD environment variable."
         ) from exc
-    print(f"[auth] No MGS_ADMIN_PASSWORD set. Generated admin password for user '{ADMIN_USER}': {pw}")
+    print(f"[auth] No MGS_ADMIN_PASSWORD set. Generated owner password for '{ADMIN_USER}': {pw}")
     print(f"[auth] Stored at {PW_FILE} (git-ignored). Set MGS_ADMIN_PASSWORD to override.")
     return pw
 
 
-def verify_credentials(username: str, password: str) -> bool:
-    expected = _resolve_password()
-    user_ok = secrets.compare_digest(username or "", ADMIN_USER)
-    pw_ok = secrets.compare_digest(password or "", expected)
-    return user_ok and pw_ok
+def authenticate(db: Session, username: str, password: str) -> str | None:
+    """Return the role on success, else None."""
+    if secrets.compare_digest(username or "", ADMIN_USER) and secrets.compare_digest(
+        password or "", _resolve_owner_password()
+    ):
+        return "owner"
+    user = db.scalar(select(User).where(User.username == username, User.active.is_(True)))
+    if user and verify_password(password or "", user.password_hash):
+        return user.role
+    return None
 
 
-def create_token(username: str) -> str:
-    payload = {"sub": username, "exp": int(time.time()) + TOKEN_TTL_SECONDS}
+# ---- tokens ----
+def create_token(username: str, role: str) -> str:
+    payload = {"sub": username, "role": role, "exp": int(time.time()) + TOKEN_TTL_SECONDS}
     return security.encrypt_dict(payload)
 
 
-def verify_token(token: str) -> str:
+def _principal(creds: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False))) -> dict:
+    if creds is None or not creds.credentials:
+        raise _unauthorized()
     try:
-        payload = security.decrypt_dict(token)
+        payload = security.decrypt_dict(creds.credentials)
     except ValueError as exc:
         raise _unauthorized("Invalid token") from exc
     if int(payload.get("exp", 0)) < int(time.time()):
         raise _unauthorized("Session expired")
-    return payload.get("sub", ADMIN_USER)
+    role = payload.get("role")
+    if role not in ROLES:
+        # Token predates roles (or is malformed) — force a fresh login rather
+        # than guessing a role (guessing "staff" locks owners out with a 403;
+        # guessing "owner" would over-grant).
+        raise _unauthorized("Please sign in again")
+    return {"sub": payload.get("sub", ""), "role": role}
 
 
-_bearer = HTTPBearer(auto_error=False)
+def require_staff(principal: dict = Depends(_principal)) -> dict:
+    """Any authenticated user (owner or staff)."""
+    return principal
 
 
-def require_admin(creds: HTTPAuthorizationCredentials | None = Depends(_bearer)) -> str:
-    if creds is None or not creds.credentials:
-        raise _unauthorized()
-    return verify_token(creds.credentials)
+def require_owner(principal: dict = Depends(_principal)) -> dict:
+    if principal.get("role") != "owner":
+        raise _forbidden()
+    return principal

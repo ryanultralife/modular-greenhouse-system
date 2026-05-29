@@ -25,20 +25,46 @@
   </header>
 
   <nav id="tabs">
-    <button data-tab="setup" class="active">Go-live</button>
-    <button data-tab="configurator">Configurator</button>
-    <button data-tab="orders">Orders</button>
-    <button data-tab="catalog">Catalog &amp; Pricing</button>
+    <button data-tab="work" class="active">Today</button>
+    <button data-tab="setup" class="owner-only">Go-live</button>
+    <button data-tab="configurator" class="owner-only">Configurator</button>
+    <button data-tab="orders" class="owner-only">Orders</button>
+    <button data-tab="catalog" class="owner-only">Catalog &amp; Pricing</button>
     <button data-tab="production">Production</button>
     <button data-tab="inventory">Inventory</button>
-    <button data-tab="presets">Presets</button>
-    <button data-tab="copacker">Co-packer</button>
-    <button data-tab="integrations">Integrations</button>
+    <button data-tab="presets" class="owner-only">Presets</button>
+    <button data-tab="copacker" class="owner-only">Co-packer</button>
+    <button data-tab="integrations" class="owner-only">Integrations</button>
+    <button data-tab="staff" class="owner-only">Staff</button>
   </nav>
 
   <main>
+    <!-- Today / work board -->
+    <section id="work" class="tab active">
+      <h2>Today</h2>
+      <p class="muted">Your priorities, from current sales and inventory. Refreshes on demand.</p>
+      <div id="work-board"></div>
+      <button id="work-refresh" style="margin-top:12px">Refresh</button>
+    </section>
+
+    <!-- Staff (owner only) -->
+    <section id="staff" class="tab">
+      <h2>Staff accounts</h2>
+      <p class="muted">Employee logins. Staff see the Today board, Production, and Inventory —
+        not pricing, payments, or integration keys.</p>
+      <div class="card">
+        <h3>Add staff member</h3>
+        <div class="row">
+          <label>Username <input id="staff-user" /></label>
+          <label>Password <input id="staff-pass" type="text" placeholder="they can change later" /></label>
+          <button id="staff-add" class="primary">Add</button>
+        </div>
+      </div>
+      <div id="staff-list"></div>
+    </section>
+
     <!-- Go-live -->
-    <section id="setup" class="tab active">
+    <section id="setup" class="tab">
       <h2>Setup &amp; go-live</h2>
       <p class="muted">Everything that needs to be true before customers can order and pay.
         Live status, refreshed from the system.</p>

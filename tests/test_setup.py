@@ -13,12 +13,14 @@ from api.app import create_app  # noqa: E402
 
 class SetupStatusTest(unittest.TestCase):
     def setUp(self):
-        from api.auth import require_admin
+        from api.auth import require_owner, require_staff
 
         self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
         self._tmp.close()
         app = create_app(db_url=f"sqlite:///{self._tmp.name}")
-        app.dependency_overrides[require_admin] = lambda: "admin"
+        owner = {"sub": "admin", "role": "owner"}
+        app.dependency_overrides[require_owner] = lambda: owner
+        app.dependency_overrides[require_staff] = lambda: owner
         self.client = TestClient(app)
 
     def tearDown(self):
