@@ -72,6 +72,7 @@ function onTab(name) {
   if (name === "presets") loadPresets();
   if (name === "copacker") loadCopacker();
   if (name === "staff") loadStaff();
+  if (name === "help") loadHelp();
 }
 
 function activateTab(name) {
@@ -573,6 +574,38 @@ async function shipFromWork(id) {
 }
 
 document.getElementById("work-refresh").addEventListener("click", () => loadWork().catch((e) => toast(e.message, true)));
+
+// ---- help & onboarding (role-aware, live status) ----
+async function loadHelp() {
+  const box = document.getElementById("help-list");
+  let data;
+  try { data = await api("/help/overview"); }
+  catch (e) { box.innerHTML = ""; box.append(el("p", { class: "muted" }, e.message)); return; }
+  box.innerHTML = "";
+  box.append(el("p", { class: "muted" }, `Showing the ${data.role} view.`));
+  data.sections.forEach((s) => {
+    const card = el("div", { class: "card" });
+    const header = el("div", { style: "display:flex;gap:10px;align-items:baseline;flex-wrap:wrap" },
+      el("h3", { style: "margin:0;flex:1 1 auto" }, s.title));
+    if (s.status) {
+      const cls = s.status.ok === true ? "ok" : s.status.ok === false ? "warn" : "muted";
+      header.append(el("span", { class: "badge " + cls }, s.status.label));
+    }
+    if (s.where && s.where !== "—") {
+      header.append(el("span", { class: "badge muted" }, "Tab: " + s.where));
+    }
+    card.append(header);
+    if (s.summary) card.append(el("p", { style: "margin:8px 0 0" }, s.summary));
+    if (s.steps && s.steps.length) {
+      const ol = el("ol", { style: "margin:10px 0 0;padding-left:22px;color:var(--muted)" });
+      s.steps.forEach((step) => ol.append(el("li", { style: "margin:4px 0" }, step)));
+      card.append(ol);
+    }
+    box.append(card);
+  });
+}
+
+document.getElementById("help-refresh").addEventListener("click", () => loadHelp().catch((e) => toast(e.message, true)));
 
 // ---- staff accounts (owner only) ----
 async function loadStaff() {
