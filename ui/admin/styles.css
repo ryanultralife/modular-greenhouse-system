@@ -138,3 +138,28 @@ header { align-items: center; }
   box-shadow: 0 4px 14px rgba(0,0,0,.25);
 }
 #toast.err { background: var(--warn); }
+
+/* ---- mobile (phones in the workshop) ---------------------------------- */
+@media (max-width: 720px) {
+  header { padding: 12px 14px; }
+  header h1 { font-size: 16px; }
+  #company { display: none; }       /* save header space on narrow widths */
+  main { padding: 14px; }
+  .card { padding: 14px; }
+
+  nav#tabs { padding: 0 6px; gap: 0; }
+  nav#tabs button { padding: 10px 12px; font-size: 13px; }
+
+  .row { gap: 10px; }
+  .row > label { width: 100%; }      /* stack form fields on phones */
+  input, select { min-width: 0; width: 100%; }
+
+  .login-card { width: min(320px, 92vw); padding: 22px; }
+
+  /* Tables horizontally scroll when content is wider than the screen.
+     white-space: nowrap keeps cells on a single line so the scroll is
+     meaningful rather than each cell wrapping to a paragraph. */
+  table { display: block; max-width: 100%; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+  th, td { padding: 8px; font-size: 13px; }
+  button { padding: 8px 10px; font-size: 13px; }
+}
