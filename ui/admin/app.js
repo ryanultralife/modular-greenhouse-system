@@ -448,6 +448,45 @@ function showApp() {
 }
 
 // ---- Today / work board ----
+function renderBuildPanel(title, section, emptyText) {
+  const card = el("div", { class: "card" });
+  const count = section.count || 0;
+  card.append(el("h3", {}, `${title} (${count} order${count === 1 ? "" : "s"})`));
+  if (section.build_items && section.build_items.length) {
+    card.append(el("p", { class: "muted" }, "Sections to fabricate:"));
+    const t = el("table");
+    t.append(el("tr", {}, el("th", {}, "Qty"), el("th", {}, "Item")));
+    section.build_items.forEach((i) => t.append(el("tr", {}, el("td", {}, String(i.quantity)), el("td", {}, i.name))));
+    card.append(t);
+  }
+  if (section.materials && section.materials.length) {
+    const heading = "Materials needed" + (section.materials_complete ? ":" : " (incomplete — some per-unit quantities not set):");
+    card.append(el("p", { class: "muted" }, heading));
+    const t = el("table");
+    t.append(el("tr", {}, el("th", {}, "Material"), el("th", {}, "Qty"), el("th", {}, "Unit")));
+    section.materials.forEach((m) => t.append(el("tr", {}, el("td", {}, m.name), el("td", {}, m.complete ? String(m.quantity) : "?"), el("td", {}, m.unit))));
+    card.append(t);
+  }
+  if (!(section.build_items || []).length && !(section.materials || []).length) {
+    card.append(el("p", { class: "muted" }, emptyText));
+  }
+  return card;
+}
+
+function renderNextWeekPanel(nw) {
+  if (!nw) return el("div");
+  let title = "Next week";
+  let empty = "Nothing scheduled yet.";
+  if (nw.source === "fab_session" && nw.session) {
+    title = `Next week — week of ${nw.session.week_of}` + (nw.session.label ? ` · ${nw.session.label}` : "");
+    empty = "Fab session is empty.";
+  } else if (nw.source === "queued") {
+    title = "Next week — queued (no session scheduled yet)";
+    empty = "No confirmed orders waiting to be scheduled.";
+  }
+  return renderBuildPanel(title, nw, empty);
+}
+
 function workOrderRow(o, actionBtn) {
   const cells = [
     el("td", {}, "#" + o.order_id),
@@ -479,24 +518,10 @@ async function loadWork() {
   box.append(np);
 
   // 2. Build this week
-  const fab = el("div", { class: "card" });
-  fab.append(el("h3", {}, `Build this week (${b.fabricate.count} order${b.fabricate.count === 1 ? "" : "s"})`));
-  if (b.fabricate.build_items.length) {
-    fab.append(el("p", { class: "muted" }, "Sections to fabricate:"));
-    const t = el("table");
-    t.append(el("tr", {}, el("th", {}, "Qty"), el("th", {}, "Item")));
-    b.fabricate.build_items.forEach((i) => t.append(el("tr", {}, el("td", {}, String(i.quantity)), el("td", {}, i.name))));
-    fab.append(t);
-  }
-  if (b.fabricate.materials.length) {
-    fab.append(el("p", { class: "muted" }, "Materials needed" + (b.fabricate.materials_complete ? ":" : " (incomplete — some per-unit quantities not set):")));
-    const t = el("table");
-    t.append(el("tr", {}, el("th", {}, "Material"), el("th", {}, "Qty"), el("th", {}, "Unit")));
-    b.fabricate.materials.forEach((m) => t.append(el("tr", {}, el("td", {}, m.name), el("td", {}, m.complete ? String(m.quantity) : "?"), el("td", {}, m.unit))));
-    fab.append(t);
-  }
-  if (!b.fabricate.build_items.length && !b.fabricate.materials.length) fab.append(el("p", { class: "muted" }, "Nothing in the build pipeline."));
-  box.append(fab);
+  box.append(renderBuildPanel("Build this week", b.fabricate, "Nothing in the build pipeline."));
+
+  // 2b. Next week (planned fab session, or queued confirmed orders)
+  box.append(renderNextWeekPanel(b.next_week));
 
   // 3. Ready to ship
   const rs = el("div", { class: "card" });

@@ -103,6 +103,43 @@ class RolesWorkBoardTest(unittest.TestCase):
         self.client.post("/api/staff", json={"username": "jo", "password": "pw"}, headers=h)
         self.assertEqual(self.client.post("/api/staff", json={"username": "jo", "password": "pw"}, headers=h).status_code, 409)
 
+    def test_next_week_falls_back_to_queued_confirmed_orders(self):
+        owner = self._login("admin", "owner-pass-123").json()["token"]
+        h = self._auth(owner)
+        # Two confirmed orders, no fab session scheduled yet.
+        for runs in ([8], [12]):
+            oid = self.client.post("/api/orders", json={"model": "barn_6_5", "shape": "straight", "runs": runs}, headers=h).json()["id"]
+            self.client.patch(f"/api/orders/{oid}", json={"status": "confirmed"}, headers=h)
+
+        board = self.client.get("/api/work/board", headers=h).json()
+        nw = board["next_week"]
+        self.assertEqual(nw["source"], "queued")
+        self.assertIsNone(nw["session"])
+        self.assertEqual(nw["count"], 2)
+
+    def test_next_week_uses_upcoming_fab_session_when_present(self):
+        from datetime import date, timedelta
+
+        owner = self._login("admin", "owner-pass-123").json()["token"]
+        h = self._auth(owner)
+        oid = self.client.post("/api/orders", json={"model": "barn_6_5", "shape": "straight", "runs": [8]}, headers=h).json()["id"]
+        self.client.patch(f"/api/orders/{oid}", json={"status": "confirmed"}, headers=h)
+
+        week_of = (date.today() + timedelta(days=7)).isoformat()
+        sid = self.client.post("/api/fab-sessions", json={"week_of": week_of, "label": "Wk+1"}, headers=h).json()["id"]
+        self.client.post(f"/api/fab-sessions/{sid}/assign", json={"order_ids": [oid]}, headers=h)
+
+        board = self.client.get("/api/work/board", headers=h).json()
+        nw = board["next_week"]
+        self.assertEqual(nw["source"], "fab_session")
+        self.assertEqual(nw["session"]["id"], sid)
+        self.assertEqual(nw["session"]["week_of"], week_of)
+        self.assertEqual(nw["count"], 1)
+        # And the lens is still money-free.
+        blob = str(board)
+        for banned in ("price", "subtotal", "stripe", "pricing", "external_refs"):
+            self.assertNotIn(banned, blob.lower())
+
 
 if __name__ == "__main__":
     unittest.main()
