@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
-from ..auth import ADMIN_USER, create_token, require_admin, verify_credentials
+from ..auth import ADMIN_USER, authenticate, create_token, require_staff
+from ..db import session_dependency
 
 router = APIRouter(tags=["auth"])
 
@@ -18,15 +20,17 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     token: str
     username: str
+    role: str
 
 
 @router.post("/auth/login", response_model=LoginResponse)
-def login(req: LoginRequest):
-    if not verify_credentials(req.username, req.password):
+def login(req: LoginRequest, db: Session = Depends(session_dependency)):
+    role = authenticate(db, req.username, req.password)
+    if role is None:
         raise HTTPException(status_code=401, detail="Invalid username or password.")
-    return {"token": create_token(req.username), "username": req.username}
+    return {"token": create_token(req.username, role), "username": req.username, "role": role}
 
 
 @router.get("/auth/me")
-def me(user: str = Depends(require_admin)):
-    return {"username": user}
+def me(principal: dict = Depends(require_staff)):
+    return {"username": principal["sub"], "role": principal["role"]}

@@ -5,7 +5,6 @@ import unittest
 from cryptography.fernet import Fernet
 
 os.environ.setdefault("MGS_SECRET_KEY", Fernet.generate_key().decode())
-os.environ["MGS_ADMIN_PASSWORD"] = "test-password-123"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -14,6 +13,9 @@ from api.app import create_app  # noqa: E402
 
 class AuthTest(unittest.TestCase):
     def setUp(self):
+        # Set in setUp (not import) so it can't be clobbered by another test
+        # module that also sets MGS_ADMIN_PASSWORD at import time.
+        os.environ["MGS_ADMIN_PASSWORD"] = "test-password-123"
         self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
         self._tmp.close()
         # No dependency override here — we exercise the real auth flow.

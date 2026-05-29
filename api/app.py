@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .auth import require_admin
+from .auth import require_owner, require_staff
 from .db import init_db
 from .routers import (
     auth,
@@ -29,7 +29,9 @@ from .routers import (
     quotes,
     setup,
     shipping,
+    users,
     webhooks,
+    work,
 )
 
 UI_DIR = Path(__file__).resolve().parents[1] / "ui"
@@ -88,9 +90,13 @@ def create_app(db_url: str | None = None) -> FastAPI:
     app.include_router(public.router, prefix="/api")
     app.include_router(webhooks.router, prefix="/api")
 
-    # Admin routers require a valid bearer token.
-    for r in (quotes, orders, catalog, production, integrations, shipping, inventory, presets, setup):
-        app.include_router(r.router, prefix="/api", dependencies=[Depends(require_admin)])
+    # Owner-only routers: financials, pricing, secrets, staff management.
+    for r in (quotes, orders, catalog, integrations, presets, setup, users):
+        app.include_router(r.router, prefix="/api", dependencies=[Depends(require_owner)])
+
+    # Staff + owner routers: the operational work board and the lists behind it.
+    for r in (work, inventory, production, shipping):
+        app.include_router(r.router, prefix="/api", dependencies=[Depends(require_staff)])
 
     @app.get("/health")
     def health():

@@ -98,6 +98,25 @@ class Setting(Base):
     value: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+# Roles. "owner" sees everything (incl. secrets/pricing); "staff" gets the
+# operational work board + inventory/production/shipping, no financial data.
+ROLES = ("owner", "staff")
+
+
+class User(Base):
+    """A staff login. The owner authenticates via MGS_ADMIN_PASSWORD (not stored
+    here); these are the additional employee accounts the owner creates."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(80), unique=True)
+    password_hash: Mapped[str] = mapped_column(String(200))
+    role: Mapped[str] = mapped_column(String(20), default="staff")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
 class Preset(Base):
     """A ready-to-ship product a customer can buy and pay for directly."""
 

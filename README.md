@@ -84,9 +84,14 @@ over the API.
 - **Integration secrets** are encrypted with a master key from `MGS_SECRET_KEY`
   (or an auto-generated, git-ignored `data/.secret_key`). Secrets are never
   logged, never committed, and only ever returned masked.
-- **Admin auth**: every `/api` route except the public website flow and login
-  requires a bearer token issued by `POST /api/auth/login`. The password comes
-  from `MGS_ADMIN_PASSWORD` or a generated, git-ignored `data/.admin_password`.
+- **Auth & roles**: every `/api` route except the public website flow, login,
+  and signed webhooks requires a bearer token from `POST /api/auth/login`. Two
+  roles: **owner** (full access — pricing, payments, integrations, staff
+  management; authenticates as `admin` with `MGS_ADMIN_PASSWORD` or a generated,
+  git-ignored `data/.admin_password`) and **staff** (employee accounts the owner
+  creates in the Staff tab — access limited to the Today work board, Production,
+  Inventory, and Shipping; never pricing, payments, or secrets). Staff passwords
+  are stored salted+hashed (PBKDF2).
 - The engineering triage is **not** a structural certification. Non-standard
   builds always require a qualified engineer's sign-off before the published
   ratings are advertised for them.
