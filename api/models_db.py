@@ -19,6 +19,20 @@ ORDER_STATUSES = (
     "shipped",
     "cancelled",
 )
+
+# Legal forward transitions for a manual status edit. Prevents nonsense moves
+# like shipped -> quote or cancelled -> paid. cancelled is reachable from any
+# non-terminal state; shipped/cancelled are terminal.
+ORDER_TRANSITIONS = {
+    "quote": {"pending_payment", "confirmed", "cancelled"},
+    "pending_payment": {"paid", "confirmed", "cancelled"},
+    "paid": {"confirmed", "in_production", "cancelled"},
+    "confirmed": {"in_production", "cancelled"},
+    "in_production": {"shipped", "cancelled"},
+    "shipped": set(),
+    "cancelled": set(),
+}
+
 SESSION_STATUSES = ("planned", "locked", "done")
 COPACKER_ORDER_STATUSES = ("draft", "sent", "received", "cancelled")
 

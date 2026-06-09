@@ -59,5 +59,91 @@ class WebhookEndpointTest(unittest.TestCase):
         self.assertIn("webhook secret", r.json()["detail"].lower())
 
 
+class WebhookFulfillmentTest(unittest.TestCase):
+    """Validly-signed checkout.session.completed -> fulfillment, and idempotent
+    against Stripe's at-least-once duplicate delivery."""
+
+    SECRET = "whsec_fulfilltest"
+
+    def setUp(self):
+        import json
+
+        from api import inventory_store, security
+        from api.checkout import create_checkout_for_preset
+        from api.db import get_session
+        from api.models_db import CoPackerOrder, Integration, Preset
+
+        self._json = json
+        self._tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        self._tmp.close()
+        self.client = TestClient(create_app(db_url=f"sqlite:///{self._tmp.name}"))
+        self.db = get_session()
+        self._inv = inventory_store
+        self._CoPackerOrder = CoPackerOrder
+
+        # Configure Stripe with a webhook secret.
+        self.db.add(Integration(
+            provider="stripe", label="Stripe",
+            secret_blob=security.encrypt_dict({"secret_key": "sk_test", "webhook_secret": self.SECRET}),
+            field_names=["secret_key", "webhook_secret"], enabled=True,
+        ))
+        # A priced, stocked preset.
+        preset = Preset(name="Barn 6x8", model_id="barn_6_5", shape="straight", runs=[8],
+                        price_usd=1499, verified_price=True, active=True)
+        self.db.add(preset)
+        self.db.commit()
+        inventory_store.upsert_item(self.db, kind="finished_unit", key=preset.stock_key, name=preset.name, on_hand=2)
+
+        # Use the service layer (with a fake Stripe) to create a pending order.
+        class _FakeStripe:
+            def create_checkout_session(self, **kw):
+                return {"id": "cs_test", "url": "https://stripe/cs_test"}
+            def close(self):
+                pass
+
+        res = create_checkout_for_preset(self.db, preset, name="Pat", email="p@x.com",
+                                         base_url="https://site", stripe_client=_FakeStripe())
+        self.order_id = res["order_id"]
+        self.stock_key = preset.stock_key
+
+    def tearDown(self):
+        self.db.close()
+        os.unlink(self._tmp.name)
+
+    def _event(self):
+        return self._json.dumps({
+            "id": "evt_1", "type": "checkout.session.completed",
+            "data": {"object": {"id": "cs_test", "metadata": {"order_id": str(self.order_id)}}},
+        }).encode()
+
+    def _post(self, payload):
+        return self.client.post("/api/stripe/webhook", content=payload,
+                                headers={"Stripe-Signature": sign(payload, self.SECRET)})
+
+    def test_valid_webhook_fulfills_and_is_idempotent(self):
+        payload = self._event()
+
+        r1 = self._post(payload)
+        self.assertEqual(r1.status_code, 200)
+        self.db.expire_all()
+        from api.models_db import Order
+        self.assertEqual(self.db.get(Order, self.order_id).payment_status, "paid")
+        self.assertEqual(self._inv.get_item(self.db, self.stock_key).on_hand, 1)  # 2 - 1
+        self.assertEqual(len(self.db.query(self._CoPackerOrder).all()), 1)
+
+        # Duplicate delivery (Stripe retries) must not double-fulfill.
+        r2 = self._post(payload)
+        self.assertEqual(r2.status_code, 200)
+        self.db.expire_all()
+        self.assertEqual(self._inv.get_item(self.db, self.stock_key).on_hand, 1)  # still 1
+        self.assertEqual(len(self.db.query(self._CoPackerOrder).all()), 1)  # still 1
+
+    def test_bad_signature_rejected(self):
+        payload = self._event()
+        r = self.client.post("/api/stripe/webhook", content=payload,
+                             headers={"Stripe-Signature": "t=1,v1=deadbeef"})
+        self.assertEqual(r.status_code, 400)
+
+
 if __name__ == "__main__":
     unittest.main()

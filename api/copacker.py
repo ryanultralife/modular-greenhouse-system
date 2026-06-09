@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from html import escape
+
 from sqlalchemy.orm import Session
 
 from .email_service import EmailError, send_email
@@ -30,11 +32,14 @@ def create_copacker_order(
     db.commit()
 
     if email_to:
-        rows = "".join(f"<li>{i['quantity']} × {i.get('name', i.get('key'))}</li>" for i in items)
+        rows = "".join(
+            f"<li>{escape(str(i['quantity']))} × {escape(str(i.get('name', i.get('key'))))}</li>"
+            for i in items
+        )
         html = (
-            f"<p>New co-packer build order ({trigger}):</p>"
+            f"<p>New co-packer build order ({escape(trigger)}):</p>"
             f"<ul>{rows}</ul>"
-            f"{('<p>' + notes + '</p>') if notes else ''}"
+            f"{('<p>' + escape(notes) + '</p>') if notes else ''}"
         )
         try:
             send_email(db, email_to, f"Co-packer build order #{order.id}", html)

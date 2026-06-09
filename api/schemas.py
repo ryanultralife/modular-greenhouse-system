@@ -4,14 +4,24 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # ---- Quotes / configurator ----
 class QuoteRequest(BaseModel):
-    model: str
-    shape: str
-    runs: list[float] = Field(min_length=1)
+    model: str = Field(max_length=64)
+    shape: str = Field(max_length=16)
+    # Bound the array and each value: a greenhouse arm is a handful of 4-ft
+    # bays, so this is generous while preventing unauthenticated CPU/memory abuse.
+    runs: list[float] = Field(min_length=1, max_length=64)
+
+    @field_validator("runs")
+    @classmethod
+    def _bound_runs(cls, v: list[float]) -> list[float]:
+        for r in v:
+            if r <= 0 or r > 1000:
+                raise ValueError("each run length must be between 0 and 1000 ft")
+        return v
 
 
 class BomLineOut(BaseModel):

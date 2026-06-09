@@ -41,12 +41,18 @@ def upsert_item(
     return item
 
 
-def adjust(db: Session, key: str, delta: float) -> InventoryItem | None:
-    """Change on_hand by delta (negative to consume). No-op if the item is absent."""
+def adjust(db: Session, key: str, delta: float, floor: float | None = None) -> InventoryItem | None:
+    """Change on_hand by delta (negative to consume). No-op if the item is absent.
+
+    If ``floor`` is given, on_hand is clamped to it (use floor=0 to prevent
+    negative physical stock on an oversell)."""
     item = get_item(db, key)
     if item is None:
         return None
-    item.on_hand = item.on_hand + delta
+    new_value = item.on_hand + delta
+    if floor is not None and new_value < floor:
+        new_value = floor
+    item.on_hand = new_value
     db.commit()
     return item
 

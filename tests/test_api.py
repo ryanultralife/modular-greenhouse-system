@@ -59,6 +59,16 @@ class ApiTest(unittest.TestCase):
         r = self.client.get("/api/orders?status=confirmed")
         self.assertEqual(len(r.json()), 1)
 
+    def test_illegal_status_transition_rejected(self):
+        oid = self.client.post("/api/orders", json={"model": "barn_6_5", "shape": "straight", "runs": [8]}).json()["id"]
+        self.client.patch(f"/api/orders/{oid}", json={"status": "confirmed"})
+        self.client.patch(f"/api/orders/{oid}", json={"status": "in_production"})
+        self.client.patch(f"/api/orders/{oid}", json={"status": "shipped"})
+        # shipped is terminal: cannot regress to quote.
+        r = self.client.patch(f"/api/orders/{oid}", json={"status": "quote"})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("Cannot move", r.json()["detail"])
+
     def test_stock_list_aggregates_confirmed_orders(self):
         for _ in range(2):
             r = self.client.post("/api/orders", json={"model": "barn_6_5", "shape": "straight", "runs": [20]})

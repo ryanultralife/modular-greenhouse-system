@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from html import escape
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -14,7 +16,7 @@ from ..calendly_actions import CalendlySchedulingError, create_install_link
 from ..db import session_dependency
 from ..email_service import EmailError, send_email
 from ..engine_bridge import compute_quote
-from ..models_db import ORDER_STATUSES, Order
+from ..models_db import ORDER_STATUSES, ORDER_TRANSITIONS, Order
 from ..quickbooks_sync import QuickBooksSyncError, sync_order
 from ..schemas import (
     EmailResult,
@@ -107,11 +109,16 @@ def update_order(
     order = db.get(Order, order_id)
     if order is None:
         raise HTTPException(status_code=404, detail="Order not found")
-    if req.status is not None:
+    if req.status is not None and req.status != order.status:
         if req.status not in ORDER_STATUSES:
             raise HTTPException(
                 status_code=400,
                 detail=f"Invalid status. Allowed: {', '.join(ORDER_STATUSES)}",
+            )
+        if req.status not in ORDER_TRANSITIONS.get(order.status, set()):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot move an order from '{order.status}' to '{req.status}'.",
             )
         order.status = req.status
     if req.fab_session_id is not None:
@@ -165,11 +172,12 @@ def schedule_install(order_id: int, notify: bool = False, db: Session = Depends(
     emailed = False
     if notify:
         to = _recipient(order)
-        name = order.customer_name or "there"
+        name = escape(order.customer_name or "there")
+        safe_url = escape(booking_url, quote=True)
         html = (
             f"<p>Hi {name},</p><p>Thanks for your order with Modular Greenhouses. "
             f"Please pick a time for your install here:</p>"
-            f"<p><a href='{booking_url}'>{booking_url}</a></p>"
+            f"<p><a href='{safe_url}'>{safe_url}</a></p>"
         )
         try:
             send_email(db, to, "Schedule your greenhouse install", html)
@@ -188,12 +196,12 @@ def send_confirmation(order_id: int, db: Session = Depends(session_dependency)):
         raise HTTPException(status_code=404, detail="Order not found")
     to = _recipient(order)
     rows = "".join(
-        f"<li>{l['quantity']} × {l['name']}</li>" for l in (order.bom or [])
+        f"<li>{int(l['quantity'])} × {escape(str(l['name']))}</li>" for l in (order.bom or [])
     )
     subtotal = (order.pricing or {}).get("verified_subtotal_usd", 0)
     html = (
-        f"<p>Hi {order.customer_name or 'there'},</p>"
-        f"<p>Here is a summary of your {order.model_id} ({order.shape}) order:</p>"
+        f"<p>Hi {escape(order.customer_name or 'there')},</p>"
+        f"<p>Here is a summary of your {escape(order.model_id)} ({escape(order.shape)}) order:</p>"
         f"<ul>{rows}</ul>"
         f"<p>Estimated subtotal: ${subtotal:,.2f}</p>"
         f"<p>We'll be in touch with next steps. Thank you!</p>"

@@ -10,7 +10,7 @@ Flow:
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from . import inventory_store, security
@@ -106,20 +106,30 @@ def create_checkout_for_preset(
 
 def handle_paid_order(db: Session, order: Order) -> Order:
     """Mark an order paid, decrement stock, and trigger co-packer replenishment.
-    Idempotent: a second call for an already-paid order does nothing."""
-    if order.payment_status == "paid":
-        return order
 
-    order.payment_status = "paid"
-    order.status = "paid"
+    Idempotent and concurrency-safe against Stripe's at-least-once webhook
+    delivery: the paid transition is a single conditional UPDATE, so only the
+    first caller proceeds to fulfillment even if duplicate webhooks race.
+    """
+    # Atomically flip unpaid -> paid; rowcount tells us if WE won the race.
+    won = db.execute(
+        update(Order)
+        .where(Order.id == order.id, Order.payment_status != "paid")
+        .values(payment_status="paid", status="paid")
+    ).rowcount
     db.commit()
+    if not won:
+        db.refresh(order)
+        return order  # already fulfilled by a prior (or concurrent) delivery
 
+    db.refresh(order)
     if order.preset_id is None:
         return order
 
     preset = db.get(Preset, order.preset_id)
     stock_key = f"preset:{order.preset_id}"
-    inventory_store.adjust(db, stock_key, -1)
+    # Clamp at zero: physical stock is never negative even on an oversell.
+    inventory_store.adjust(db, stock_key, -1, floor=0)
 
     # Co-packer replenishment for the sold unit.
     item = inventory_store.get_item(db, stock_key)
