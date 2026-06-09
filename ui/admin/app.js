@@ -193,7 +193,12 @@ async function loadOrders() {
     el("th", {}, "Subtotal"), el("th", {}, "Eng."), el("th", {}, "Status"), el("th", {}, ""), el("th", {}, "Invoice")));
   orders.forEach((o) => {
     const sel = el("select");
-    ["quote", "confirmed", "in_production", "shipped", "cancelled"].forEach((s) =>
+    // Include the order's current status so it's always the selected option —
+    // otherwise a 'paid'/'pending_payment' order would default to the first
+    // entry and a careless Save could regress it. The server enforces legal
+    // transitions regardless.
+    const STATUS_OPTS = ["quote", "pending_payment", "paid", "confirmed", "in_production", "shipped", "cancelled"];
+    STATUS_OPTS.forEach((s) =>
       sel.append(el("option", s === o.status ? { value: s, selected: "selected" } : { value: s }, s)));
     const save = el("button", { onclick: async () => {
       try { await api(`/orders/${o.id}`, { method: "PATCH", body: JSON.stringify({ status: sel.value }) }); toast(`Order #${o.id} → ${sel.value}`); }

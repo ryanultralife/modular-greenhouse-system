@@ -24,11 +24,14 @@ router = APIRouter(tags=["integrations"])
 def _masked(integration: Integration) -> dict[str, str]:
     creds = security.decrypt_dict(integration.secret_blob)
     provider = PROVIDERS.get(integration.provider)
-    secret_fields = {f.name for f in provider.fields if f.secret} if provider else set()
-    out: dict[str, str] = {}
-    for name, value in creds.items():
-        out[name] = security.mask_value(value) if name in secret_fields else value
-    return out
+    # Mask by default: only fields the provider explicitly declares as
+    # NON-secret are returned in clear. Anything else (undeclared keys, unknown
+    # providers) is masked, so a mistyped/extra secret never echoes back.
+    plain_fields = {f.name for f in provider.fields if not f.secret} if provider else set()
+    return {
+        name: (value if name in plain_fields else security.mask_value(value))
+        for name, value in creds.items()
+    }
 
 
 def _to_out(integration: Integration) -> dict:

@@ -7,9 +7,10 @@ Read-only configurator + a quote-request that lands as a lead order
 from __future__ import annotations
 
 import os
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -25,17 +26,34 @@ from ..schemas import QuoteRequest
 router = APIRouter(prefix="/public", tags=["public"])
 
 
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
 class PresetCheckoutRequest(BaseModel):
     preset_id: int
-    name: str = ""
-    email: str = ""
+    name: str = Field(default="", max_length=200)
+    email: str = Field(default="", max_length=200)
+
+    @field_validator("email")
+    @classmethod
+    def _check_email(cls, v: str) -> str:
+        if v and not _EMAIL_RE.match(v):
+            raise ValueError("invalid email address")
+        return v
 
 
 class QuoteRequestPublic(QuoteRequest):
-    name: str = ""
-    email: str = ""
-    phone: str = ""
-    message: str = ""
+    name: str = Field(default="", max_length=200)
+    email: str = Field(default="", max_length=200)
+    phone: str = Field(default="", max_length=40)
+    message: str = Field(default="", max_length=2000)
+
+    @field_validator("email")
+    @classmethod
+    def _check_email(cls, v: str) -> str:
+        if v and not _EMAIL_RE.match(v):
+            raise ValueError("invalid email address")
+        return v
 
 
 @router.get("/models")

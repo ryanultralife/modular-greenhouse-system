@@ -99,6 +99,8 @@ class ShippingApiTest(unittest.TestCase):
 
     def test_shipping_queue(self):
         oid = self._order([12])
+        # Follow the legal lifecycle: quote -> confirmed -> in_production.
+        self.client.patch(f"/api/orders/{oid}", json={"status": "confirmed"})
         self.client.patch(f"/api/orders/{oid}", json={"status": "in_production"})
         r = self.client.get("/api/shipping/queue?status=in_production")
         self.assertEqual(r.status_code, 200)

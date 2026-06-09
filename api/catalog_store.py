@@ -22,9 +22,17 @@ from .models_db import Setting
 OVERRIDES_KEY = "catalog_overrides"
 _EDITABLE_SKU_FIELDS = {"price_usd", "verified_price", "weight_lb", "fulfillment", "copacker"}
 
+# The bundled catalog is a read-only file shipped with the app, so parse it once
+# and hand out deep copies — avoids a disk read + JSON parse on every request
+# (which several endpoints do per-order in a loop).
+_SEED_CACHE: dict[str, Any] | None = None
+
 
 def _seed() -> dict[str, Any]:
-    return json.loads(Path(DEFAULT_CATALOG_PATH).read_text())
+    global _SEED_CACHE
+    if _SEED_CACHE is None:
+        _SEED_CACHE = json.loads(Path(DEFAULT_CATALOG_PATH).read_text())
+    return copy.deepcopy(_SEED_CACHE)
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
