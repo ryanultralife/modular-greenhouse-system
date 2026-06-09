@@ -135,22 +135,24 @@ Batching orders into a weekly fabrication session is how the shop actually plans
 
 ### The marketing funnel (and what's automated)
 
-**🟡 Partly built** · _Audience: owner_
+**✅ Built** · _Audience: owner_
 
-Marketing isn't a separate tool bolted on — it attaches to each stage of the same order pipeline. Capture, convert, recover, nurture.
+Marketing isn't a separate tool bolted on — it attaches to each stage of the same order pipeline. Capture, attribute, sync, recover, nurture.
 
 **Steps:**
 
-1. Capture (BUILT): every quote request becomes a lead with contact info and source.
-1. Attribution (NEXT): tag each lead/sale with where it came from (UTM/referrer) to see which channels convert.
-1. List sync (NEXT): push leads + buyers into your email tool automatically.
-1. Recover (NEXT): a started-but-unpaid checkout triggers a follow-up nudge.
-1. Nurture (NEXT): after delivery, an automated review request and referral ask.
+1. Capture: every quote request becomes a lead with contact info and source.
+1. Attribution: the public site captures UTM params + referrer + landing path on first visit; every lead and purchase carries that source data.
+1. List sync: a configured webhook URL (Zapier/Make/n8n/custom) receives every new lead and paid order automatically.
+1. Recover: started-but-unpaid checkouts older than the grace period get a follow-up nudge by email.
+1. Nurture: shipped orders trigger an automated review / referral email after the configured delay.
 
 **Why it's built this way:**
 
 - All of this rides the existing order pipeline — no separate CRM to keep in sync.
-- Automation backbone: an event log + a scheduled runner (Vercel Cron) so these fire on their own, each with an on/off toggle.
+- Backbone: an event log + a scheduled runner (Vercel Cron, hourly) so automations fire on their own, with an on/off toggle and editable templates per automation.
+- Idempotent by construction: each automation records what it has done in the event log, so re-runs naturally skip already-handled items — duplicate cron deliveries can't double-send.
+- Cron endpoint is protected by an env-var bearer token (CRON_SECRET), the same one Vercel Cron uses.
 
 ### Why these structural choices
 

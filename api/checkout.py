@@ -14,6 +14,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from . import inventory_store, security
+from .audit import record_event
 from .copacker import create_copacker_order
 from .models_db import Integration, Order, Preset, Setting
 from .stripe_client import StripeClient, StripeError
@@ -48,6 +49,7 @@ def create_checkout_for_preset(
     email: str,
     base_url: str,
     stripe_client: StripeClient | None = None,
+    attribution: dict | None = None,
 ) -> dict:
     if not preset.active:
         raise CheckoutError("This product is not available.")
@@ -77,9 +79,14 @@ def create_checkout_for_preset(
         quote_lines=[],
         pricing={"verified_subtotal_usd": preset.price_usd, "quote_complete": True},
         engineering={},
+        attribution=attribution or {},
     )
     db.add(order)
     db.commit()
+    record_event(
+        db, "checkout.started", entity_type="order", entity_id=order.id,
+        data={"preset_id": preset.id, "email": email, "attribution": attribution or {}},
+    )
 
     try:
         session = stripe_client.create_checkout_session(
@@ -123,6 +130,10 @@ def handle_paid_order(db: Session, order: Order) -> Order:
         return order  # already fulfilled by a prior (or concurrent) delivery
 
     db.refresh(order)
+    record_event(
+        db, "order.paid", entity_type="order", entity_id=order.id,
+        data={"preset_id": order.preset_id, "email": order.customer_email},
+    )
     if order.preset_id is None:
         return order
 

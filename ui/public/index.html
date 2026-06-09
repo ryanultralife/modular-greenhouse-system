@@ -155,6 +155,22 @@
 
   <div id="toast" class="hidden"></div>
   <script>
+    // Capture marketing attribution on first visit (UTM params + referrer + landing path),
+    // stickied in sessionStorage so it rides along on whatever the visitor submits.
+    (function () {
+      try {
+        if (sessionStorage.getItem("mgs_attrib")) return;
+        const params = new URLSearchParams(location.search);
+        const a = {};
+        ["utm_source","utm_medium","utm_campaign","utm_term","utm_content"].forEach((k) => {
+          const v = params.get(k); if (v) a[k] = v;
+        });
+        if (document.referrer && new URL(document.referrer).host !== location.host) a.referrer = document.referrer;
+        a.landing_path = location.pathname;
+        sessionStorage.setItem("mgs_attrib", JSON.stringify(a));
+      } catch (e) {}
+    })();
+
     // Enhance with live catalog data; keep the static markup if the API is unavailable.
     fetch("/api/public/models").then(r => r.ok ? r.json() : Promise.reject()).then(data => {
       const env = data.envelope || {};
@@ -221,9 +237,11 @@
           if (!email) return;
           btn.disabled = true; btn.textContent = "Redirecting…";
           try {
+            let attribution = {};
+            try { attribution = JSON.parse(sessionStorage.getItem("mgs_attrib") || "{}"); } catch (e) {}
             const res = await fetch("/api/public/checkout", {
               method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ preset_id: p.id, email }),
+              body: JSON.stringify({ preset_id: p.id, email, attribution }),
             });
             const j = await res.json();
             if (!res.ok) throw new Error(j.detail || "Checkout failed");
