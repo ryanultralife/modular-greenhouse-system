@@ -45,5 +45,5 @@ create table if not exists copacker_orders (
     notes            varchar(400) default ''
 );
 
-create index if not exists idx_inventory_key on inventory_items(key);
+-- inventory_items.key is already UNIQUE (implies an index), so no extra index needed.
 create index if not exists idx_copacker_status on copacker_orders(status);
