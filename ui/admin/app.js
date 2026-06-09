@@ -72,6 +72,7 @@ function onTab(name) {
   if (name === "presets") loadPresets();
   if (name === "copacker") loadCopacker();
   if (name === "staff") loadStaff();
+  if (name === "walkthrough") loadWalkthrough();
   if (name === "help") loadHelp();
 }
 
@@ -579,6 +580,56 @@ async function shipFromWork(id) {
 }
 
 document.getElementById("work-refresh").addEventListener("click", () => loadWork().catch((e) => toast(e.message, true)));
+
+// ---- walkthrough (role-aware guided tour) ----
+const WT_STATUS = { built: ["ok", "Built"], partial: ["warn", "Partly built"], planned: ["muted", "Planned"] };
+
+function paragraphs(target, text) {
+  text.split("\n\n").forEach((p) => { if (p.trim()) target.append(el("p", { class: "muted", style: "white-space:pre-line" }, p.trim())); });
+}
+
+async function loadWalkthrough() {
+  let data;
+  try { data = await api("/walkthrough"); }
+  catch (e) { document.getElementById("wt-flows").innerHTML = ""; toast(e.message, true); return; }
+
+  const arch = document.getElementById("wt-arch");
+  arch.innerHTML = "";
+  const archCard = el("div", { class: "card" });
+  archCard.append(el("h3", { style: "margin-top:0" }, "How it's built"));
+  paragraphs(archCard, data.architecture || "");
+  arch.append(archCard);
+
+  const box = document.getElementById("wt-flows");
+  box.innerHTML = "";
+  (data.flows || []).forEach((f) => {
+    const card = el("div", { class: "card" });
+    const [cls, label] = WT_STATUS[f.status] || ["muted", f.status];
+    card.append(el("div", { style: "display:flex;gap:10px;align-items:baseline;flex-wrap:wrap" },
+      el("h3", { style: "margin:0;flex:1 1 auto" }, f.title),
+      el("span", { class: "badge " + cls }, label)));
+    if (f.why) card.append(el("p", { style: "margin:8px 0 0" }, f.why));
+    if (f.steps && f.steps.length) {
+      const ol = el("ol", { style: "margin:10px 0 0;padding-left:22px;color:var(--muted)" });
+      f.steps.forEach((s) => ol.append(el("li", { style: "margin:4px 0" }, s)));
+      card.append(ol);
+    }
+    if (f.structural_notes && f.structural_notes.length) {
+      card.append(el("p", { class: "muted", style: "margin:10px 0 2px;font-weight:600" }, "Why it's built this way:"));
+      const ul = el("ul", { style: "margin:0;padding-left:22px;color:var(--muted)" });
+      f.structural_notes.forEach((n) => ul.append(el("li", { style: "margin:4px 0" }, n)));
+      card.append(ul);
+    }
+    box.append(card);
+  });
+
+  const next = document.getElementById("wt-next");
+  next.innerHTML = "";
+  const nextCard = el("div", { class: "card" });
+  nextCard.append(el("h3", { style: "margin-top:0" }, "What's next"));
+  paragraphs(nextCard, data.whats_next || "");
+  next.append(nextCard);
+}
 
 // ---- help & onboarding (role-aware, live status) ----
 async function loadHelp() {
