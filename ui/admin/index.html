@@ -36,6 +36,7 @@
     <button data-tab="copacker" class="owner-only">Co-packer</button>
     <button data-tab="integrations" class="owner-only">Integrations</button>
     <button data-tab="staff" class="owner-only">Staff</button>
+    <button data-tab="marketing" class="owner-only">Marketing</button>
     <button data-tab="walkthrough">Walkthrough</button>
     <button data-tab="help">Help</button>
   </nav>
@@ -238,6 +239,19 @@
         <button id="int-save" class="primary">Save credentials</button>
       </div>
       <div id="int-list"></div>
+    </section>
+
+    <!-- Marketing -->
+    <section id="marketing" class="tab">
+      <h2>Marketing automation</h2>
+      <p class="muted">Each automation runs on a schedule (Vercel Cron, hourly).
+        Enable, configure, or trigger manually. Each one is idempotent — running
+        twice doesn't double-send.</p>
+      <div id="auto-list"></div>
+      <div style="margin:12px 0"><button id="auto-run-now" class="primary">Run all now</button></div>
+      <h3>Recent events</h3>
+      <p class="muted">The shared event log behind every automation (and the audit trail for the system).</p>
+      <div id="auto-events"></div>
     </section>
 
     <!-- Walkthrough -->

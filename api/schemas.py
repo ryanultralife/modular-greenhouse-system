@@ -139,6 +139,7 @@ class OrderOut(BaseModel):
     engineering: dict
     external_refs: dict
     shipping: dict
+    attribution: dict = {}
     fab_session_id: int | None
 
 

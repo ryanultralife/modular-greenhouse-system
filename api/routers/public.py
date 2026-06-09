@@ -17,11 +17,23 @@ from sqlalchemy.orm import Session
 from greenhouse import Catalog, CatalogError, shape_options
 
 from .. import catalog_store, checkout as checkout_svc, inventory_store
+from ..audit import record_event
 from ..checkout import CheckoutError
 from ..db import session_dependency
 from ..engine_bridge import compute_quote
 from ..models_db import Order, Preset
 from ..schemas import QuoteRequest
+
+# UTM and referrer keys we accept and persist on each order.
+ATTRIBUTION_KEYS = {"utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "referrer", "landing_path"}
+
+
+def _clean_attribution(value: dict | None) -> dict:
+    """Keep only known keys, cap each value's length — visitors can put
+    anything in URL params, so don't blindly persist whatever they sent."""
+    if not isinstance(value, dict):
+        return {}
+    return {k: str(value[k])[:200] for k in ATTRIBUTION_KEYS if value.get(k)}
 
 router = APIRouter(prefix="/public", tags=["public"])
 
@@ -33,6 +45,7 @@ class PresetCheckoutRequest(BaseModel):
     preset_id: int
     name: str = Field(default="", max_length=200)
     email: str = Field(default="", max_length=200)
+    attribution: dict | None = None
 
     @field_validator("email")
     @classmethod
@@ -47,6 +60,7 @@ class QuoteRequestPublic(QuoteRequest):
     email: str = Field(default="", max_length=200)
     phone: str = Field(default="", max_length=40)
     message: str = Field(default="", max_length=2000)
+    attribution: dict | None = None
 
     @field_validator("email")
     @classmethod
@@ -120,6 +134,7 @@ def public_quote_request(req: QuoteRequestPublic, db: Session = Depends(session_
     except (CatalogError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    attribution = _clean_attribution(req.attribution)
     order = Order(
         customer_name=req.name,
         customer_email=req.email,
@@ -133,9 +148,14 @@ def public_quote_request(req: QuoteRequestPublic, db: Session = Depends(session_
         quote_lines=result["quote_lines"],
         pricing=result["pricing"],
         engineering=result["engineering"],
+        attribution=attribution,
     )
     db.add(order)
     db.commit()
+    record_event(
+        db, "lead.created", entity_type="order", entity_id=order.id,
+        data={"email": req.email, "phone": req.phone, "attribution": attribution, "source": "website"},
+    )
     return {
         "ok": True,
         "order_id": order.id,
@@ -178,7 +198,8 @@ def public_checkout(
     base = os.environ.get("MGS_PUBLIC_URL") or str(request.base_url).rstrip("/")
     try:
         return checkout_svc.create_checkout_for_preset(
-            db, preset, name=req.name, email=req.email, base_url=base
+            db, preset, name=req.name, email=req.email, base_url=base,
+            attribution=_clean_attribution(req.attribution),
         )
     except CheckoutError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

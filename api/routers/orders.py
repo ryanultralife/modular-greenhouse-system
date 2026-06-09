@@ -53,6 +53,7 @@ def _to_out(order: Order) -> dict:
         "engineering": order.engineering,
         "external_refs": order.external_refs or {},
         "shipping": order.shipping or {},
+        "attribution": order.attribution or {},
         "fab_session_id": order.fab_session_id,
     }
 

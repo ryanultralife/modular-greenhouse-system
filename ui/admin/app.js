@@ -72,6 +72,7 @@ function onTab(name) {
   if (name === "presets") loadPresets();
   if (name === "copacker") loadCopacker();
   if (name === "staff") loadStaff();
+  if (name === "marketing") loadMarketing();
   if (name === "walkthrough") loadWalkthrough();
   if (name === "help") loadHelp();
 }
@@ -580,6 +581,69 @@ async function shipFromWork(id) {
 }
 
 document.getElementById("work-refresh").addEventListener("click", () => loadWork().catch((e) => toast(e.message, true)));
+
+// ---- marketing automation ----
+async function loadMarketing() {
+  let items;
+  try { items = await api("/automations"); }
+  catch (e) { toast(e.message, true); return; }
+  const box = document.getElementById("auto-list");
+  box.innerHTML = "";
+  items.forEach((a) => {
+    const card = el("div", { class: "card" });
+    const header = el("div", { style: "display:flex;gap:10px;align-items:baseline;flex-wrap:wrap" },
+      el("h3", { style: "margin:0;flex:1 1 auto" }, a.kind.replace(/_/g, " ")),
+      el("span", { class: "badge " + (a.enabled ? "ok" : "muted") }, a.enabled ? "enabled" : "disabled"));
+    if (a.last_run_at) {
+      const cls = a.last_run_ok === true ? "ok" : a.last_run_ok === false ? "warn" : "muted";
+      header.append(el("span", { class: "badge " + cls }, `last run: ${a.last_run_message || (a.last_run_ok ? "ok" : "—")}`));
+    }
+    card.append(header);
+
+    const cfg = el("textarea", { rows: "4", style: "width:100%;font-family:ui-monospace,monospace;font-size:13px;margin-top:10px" });
+    cfg.value = JSON.stringify(a.config || {}, null, 2);
+    card.append(el("p", { class: "muted", style: "margin:10px 0 4px" }, "Configuration (JSON):"));
+    card.append(cfg);
+
+    const saveCfg = el("button", { onclick: async () => {
+      let parsed;
+      try { parsed = JSON.parse(cfg.value); }
+      catch (e) { toast("Invalid JSON: " + e.message, true); return; }
+      try { await api(`/automations/${a.kind}`, { method: "PATCH", body: JSON.stringify({ config: parsed }) }); toast("Saved"); loadMarketing(); }
+      catch (e) { toast(e.message, true); }
+    }}, "Save config");
+    const toggle = el("button", { onclick: async () => {
+      try { await api(`/automations/${a.kind}`, { method: "PATCH", body: JSON.stringify({ enabled: !a.enabled }) }); toast(a.enabled ? "Disabled" : "Enabled"); loadMarketing(); }
+      catch (e) { toast(e.message, true); }
+    }}, a.enabled ? "Disable" : "Enable");
+    const runOne = el("button", { onclick: async () => {
+      try { const r = await api(`/automations/run?kind=${a.kind}`, { method: "POST" }); toast(`${a.kind}: ${r.results[0]?.message || "done"}`); loadMarketing(); }
+      catch (e) { toast(e.message, true); }
+    }}, "Run now");
+    card.append(el("div", { class: "row", style: "margin-top:10px" }, toggle, runOne, saveCfg));
+    box.append(card);
+  });
+
+  const eventsBox = document.getElementById("auto-events");
+  try {
+    const events = await api("/automations/events?limit=50");
+    eventsBox.innerHTML = "";
+    if (!events.length) { eventsBox.append(el("p", { class: "muted" }, "No events yet.")); return; }
+    const table = el("table");
+    table.append(el("tr", {}, el("th", {}, "When"), el("th", {}, "Actor"), el("th", {}, "Kind"), el("th", {}, "Entity")));
+    events.forEach((e) => table.append(el("tr", {},
+      el("td", {}, (e.occurred_at || "").replace("T", " ").slice(0, 19)),
+      el("td", {}, e.actor),
+      el("td", {}, e.kind),
+      el("td", {}, e.entity_type ? `${e.entity_type}#${e.entity_id}` : "—"))));
+    eventsBox.append(table);
+  } catch (e) {}
+}
+
+document.getElementById("auto-run-now").addEventListener("click", async () => {
+  try { const r = await api("/automations/run", { method: "POST" }); toast("Ran " + r.results.length + " automation(s)"); loadMarketing(); }
+  catch (e) { toast(e.message, true); }
+});
 
 // ---- walkthrough (role-aware guided tour) ----
 const WT_STATUS = { built: ["ok", "Built"], partial: ["warn", "Partly built"], planned: ["muted", "Planned"] };

@@ -23,5 +23,8 @@
     { "src": "/admin/(.+)", "dest": "/ui/admin/$1" },
     { "src": "/", "dest": "/ui/public/index.html" },
     { "src": "/(.+)", "dest": "/ui/public/$1" }
+  ],
+  "crons": [
+    { "path": "/api/cron/automations", "schedule": "0 * * * *" }
   ]
 }

@@ -19,7 +19,9 @@ from .auth import require_owner, require_staff
 from .db import init_db
 from .routers import (
     auth,
+    automations,
     catalog,
+    cron,
     help as help_router,
     integrations,
     inventory,
@@ -87,13 +89,15 @@ def create_app(db_url: str | None = None) -> FastAPI:
             )
         return await call_next(request)
 
-    # Open routers: login, the public website flow, and signed webhooks.
+    # Open routers: login, the public website flow, signed webhooks, and the
+    # token-protected scheduled cron endpoint.
     app.include_router(auth.router, prefix="/api")
     app.include_router(public.router, prefix="/api")
     app.include_router(webhooks.router, prefix="/api")
+    app.include_router(cron.router, prefix="/api")
 
-    # Owner-only routers: financials, pricing, secrets, staff management.
-    for r in (quotes, orders, catalog, integrations, presets, setup, users):
+    # Owner-only routers: financials, pricing, secrets, staff management, marketing.
+    for r in (quotes, orders, catalog, integrations, presets, setup, users, automations):
         app.include_router(r.router, prefix="/api", dependencies=[Depends(require_owner)])
 
     # Staff + owner routers: the operational work board and the lists behind it.

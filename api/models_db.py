@@ -67,6 +67,7 @@ class Order(Base):
 
     preset_id: Mapped[int | None] = mapped_column(Integer, nullable=True)  # set for preset purchases
     payment_status: Mapped[str] = mapped_column(String(20), default="unpaid")  # unpaid | paid
+    attribution: Mapped[dict] = mapped_column(JSON, default=dict)  # utm_source/medium/campaign/referrer/landing
 
     fab_session_id: Mapped[int | None] = mapped_column(
         ForeignKey("fab_sessions.id"), nullable=True
@@ -169,6 +170,38 @@ class InventoryItem(Base):
     reorder_point: Mapped[float] = mapped_column(default=0)
     copacker: Mapped[str] = mapped_column(String(120), default="")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+
+class AuditEvent(Base):
+    """Append-only event log. Doubles as the queue for marketing automations:
+    each automation marks orders as 'processed' by recording an event, so
+    re-runs naturally skip what's already been done (idempotent by construction).
+    """
+
+    __tablename__ = "audit_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, index=True)
+    actor: Mapped[str] = mapped_column(String(80), default="system")  # system | human:<u> | agent:<n>
+    kind: Mapped[str] = mapped_column(String(60), index=True)         # e.g. "order.paid"
+    entity_type: Mapped[str] = mapped_column(String(40), default="")  # "order" | "lead" | ""
+    entity_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+# Marketing automation toggles. The runner dispatches by kind.
+AUTOMATION_KINDS = ("abandoned_checkout", "review_followup", "list_sync")
+
+
+class Automation(Base):
+    __tablename__ = "automations"
+
+    kind: Mapped[str] = mapped_column(String(40), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    config: Mapped[dict] = mapped_column(JSON, default=dict)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_run_ok: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    last_run_message: Mapped[str] = mapped_column(String(400), default="")
 
 
 class CoPackerOrder(Base):

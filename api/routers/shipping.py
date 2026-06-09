@@ -17,6 +17,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..audit import record_event
+
 from production import build_shipment_plan
 
 from .. import catalog_store
@@ -73,6 +75,10 @@ def ship_order(order_id: int, req: ShipRequest, db: Session = Depends(session_de
     }
     order.status = "shipped"
     db.commit()
+    record_event(
+        db, "order.shipped", entity_type="order", entity_id=order.id,
+        data={"carrier": req.carrier, "tracking": req.tracking, "same_day": order.shipping.get("same_day")},
+    )
     return {"ok": True, "status": order.status, "shipping": order.shipping}
 
 

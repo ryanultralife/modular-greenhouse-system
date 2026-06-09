@@ -22,6 +22,25 @@ function toast(msg, isErr = false) {
   setTimeout(() => (t.className = "hidden"), 4000);
 }
 
+// Capture marketing attribution on first visit (sticky across the session) so
+// it can be attached to whatever the visitor eventually submits.
+function _captureAttribution() {
+  try {
+    const stored = sessionStorage.getItem("mgs_attrib");
+    if (stored) return JSON.parse(stored);
+    const params = new URLSearchParams(location.search);
+    const a = {};
+    ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content"].forEach((k) => {
+      const v = params.get(k); if (v) a[k] = v;
+    });
+    if (document.referrer && new URL(document.referrer).host !== location.host) a.referrer = document.referrer;
+    a.landing_path = location.pathname;
+    sessionStorage.setItem("mgs_attrib", JSON.stringify(a));
+    return a;
+  } catch (e) { return {}; }
+}
+const ATTRIBUTION = _captureAttribution();
+
 function el(tag, attrs = {}, ...kids) {
   const n = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
@@ -123,6 +142,7 @@ document.getElementById("submit-btn").addEventListener("click", async () => {
     email: document.getElementById("f-email").value,
     phone: document.getElementById("f-phone").value,
     message: document.getElementById("f-message").value,
+    attribution: ATTRIBUTION,
   };
   if (!body.email && !body.phone) { toast("Please add an email or phone so we can reach you.", true); return; }
   try {
