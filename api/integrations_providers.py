@@ -116,6 +116,25 @@ def _smtp_test(creds: dict[str, str]) -> tuple[bool | None, str]:
     return True, "SMTP connection and login OK."
 
 
+def _anthropic_test(creds: dict[str, str]) -> tuple[bool | None, str]:
+    key = creds.get("api_key", "")
+    if not key:
+        return False, "Missing api_key."
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=key)
+        client.models.list(limit=1)  # cheap, read-only auth check
+        client.close()
+    except anthropic.AuthenticationError:
+        return False, "Anthropic rejected the key (unauthorized)."
+    except anthropic.APIConnectionError as exc:
+        return False, f"Network error contacting Anthropic: {exc}"
+    except anthropic.APIStatusError as exc:
+        return False, f"Anthropic returned HTTP {exc.status_code}."
+    return True, "Anthropic key valid (listed models)."
+
+
 def _custom_test(creds: dict[str, str]) -> tuple[bool | None, str]:
     base_url = creds.get("base_url", "")
     if not base_url:
@@ -164,6 +183,16 @@ PROVIDERS: dict[str, Provider] = {
         ),
         _quickbooks_test,
         "https://developer.intuit.com",
+    ),
+    "anthropic": Provider(
+        "anthropic",
+        "Anthropic (AI advisor)",
+        (
+            Field("api_key", "API key (sk-ant-…)", secret=True),
+            Field("model", "Model (optional; default claude-opus-4-8)"),
+        ),
+        _anthropic_test,
+        "https://platform.claude.com",
     ),
     "smtp": Provider(
         "smtp",

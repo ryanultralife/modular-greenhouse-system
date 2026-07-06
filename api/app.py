@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from .auth import require_owner, require_staff
 from .db import init_db
 from .routers import (
+    advisor,
     auth,
     automations,
     catalog,
@@ -95,6 +96,7 @@ def create_app(db_url: str | None = None) -> FastAPI:
     app.include_router(public.router, prefix="/api")
     app.include_router(webhooks.router, prefix="/api")
     app.include_router(cron.router, prefix="/api")
+    app.include_router(advisor.router, prefix="/api")
 
     # Owner-only routers: financials, pricing, secrets, staff management, marketing.
     for r in (quotes, orders, catalog, integrations, presets, setup, users, automations):

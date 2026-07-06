@@ -78,6 +78,16 @@ def _prices_status(db: Session) -> dict:
     return {"label": f"{total - unverified} of {total} SKU prices verified", "ok": unverified == 0}
 
 
+def _advisor_status(db: Session) -> dict:
+    import os
+
+    integ = db.scalar(
+        select(Integration).where(Integration.provider == "anthropic", Integration.enabled.is_(True))
+    )
+    ok = bool(integ) or bool(os.environ.get("ANTHROPIC_API_KEY"))
+    return {"label": "configured" if ok else "not configured", "ok": ok}
+
+
 SECTIONS: list[HelpSection] = [
     # ---------- both roles ----------
     HelpSection(
@@ -230,6 +240,26 @@ SECTIONS: list[HelpSection] = [
         where="Integrations → Email (SMTP)",
         roles=("owner",),
         status_fn=_smtp_status,
+    ),
+    HelpSection(
+        id="advisor",
+        title="AI greenhouse advisor",
+        summary=(
+            "A chat assistant on the public site that recommends configurations, prices "
+            "them with the real engine (never invents numbers), and captures quote "
+            "requests. Grounded by hard rules: unverified prices stay TBD, custom "
+            "layouts always carry the engineer sign-off caveat, and the only action it "
+            "can take is submitting a quote request. Conversations appear in the "
+            "Marketing event log; daily per-visitor and global caps bound the cost."
+        ),
+        where="Integrations → Anthropic (AI advisor)",
+        roles=("owner",),
+        status_fn=_advisor_status,
+        steps=[
+            "Paste your Anthropic api_key under Integrations → Anthropic (AI advisor).",
+            "Optionally set the model (default claude-opus-4-8).",
+            "The chat bubble appears on the public site automatically once configured.",
+        ],
     ),
 ]
 

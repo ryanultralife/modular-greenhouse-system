@@ -154,6 +154,27 @@ Marketing isn't a separate tool bolted on — it attaches to each stage of the s
 - Idempotent by construction: each automation records what it has done in the event log, so re-runs naturally skip already-handled items — duplicate cron deliveries can't double-send.
 - Cron endpoint is protected by an env-var bearer token (CRON_SECRET), the same one Vercel Cron uses.
 
+### The AI greenhouse advisor
+
+**✅ Built** · _Audience: owner_
+
+The website doesn't just display products — it can talk. A grounded AI assistant answers visitors, prices any configuration with the real engine, and turns interest into quote requests, 24/7.
+
+**Steps:**
+
+1. A visitor opens the chat bubble on the public site and describes what they want.
+1. The advisor calls the same pricing/engineering engine as the configurator — it cannot invent a price.
+1. Custom layouts automatically carry the engineer sign-off caveat from the engine.
+1. When the visitor is ready, the advisor collects a name + contact and submits a quote request — the same lead pipeline as the form.
+1. Every exchange lands in the event log (actor 'agent:advisor') so you can review what customers ask.
+
+**Why it's built this way:**
+
+- Grounding over generation: prices and engineering verdicts come only from tools backed by the engine; unverified prices stay TBD.
+- One safe action: the advisor can submit a quote request and nothing else — no payments, no order changes.
+- Cost is bounded: capped reply length, capped history, and per-visitor + global daily limits enforced through the event log.
+- Setup is self-serve: paste an Anthropic API key under Integrations — same pattern as Stripe/QuickBooks.
+
 ### Why these structural choices
 
 **✅ Built** · _Audience: owner_
