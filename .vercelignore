@@ -7,3 +7,6 @@ data/.secret_key
 data/.admin_password
 **/__pycache__/
 *.pyc
+
+# Source photo library (212MB) — archived in git, never served; ui/public/assets is the deployed subset
+assets/
