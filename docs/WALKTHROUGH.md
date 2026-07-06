@@ -137,15 +137,17 @@ Batching orders into a weekly fabrication session is how the shop actually plans
 
 **✅ Built** · _Audience: owner_
 
-Marketing isn't a separate tool bolted on — it attaches to each stage of the same order pipeline. Capture, attribute, sync, recover, nurture.
+Marketing isn't a separate tool bolted on — it attaches to each stage of the same order pipeline. Capture, attribute, follow up, sync, recover, nurture, promote.
 
 **Steps:**
 
 1. Capture: every quote request becomes a lead with contact info and source.
 1. Attribution: the public site captures UTM params + referrer + landing path on first visit; every lead and purchase carries that source data.
+1. Follow up: each new lead automatically gets a personalized email about their exact configuration (AI-written when the Anthropic key is set, template otherwise).
 1. List sync: a configured webhook URL (Zapier/Make/n8n/custom) receives every new lead and paid order automatically.
 1. Recover: started-but-unpaid checkouts older than the grace period get a follow-up nudge by email.
 1. Nurture: shipped orders trigger an automated review / referral email after the configured delay.
+1. Promote: a weekly pack of grounded Facebook post drafts — emailed to you and/or pushed to a Zapier webhook that publishes to your Page.
 
 **Why it's built this way:**
 

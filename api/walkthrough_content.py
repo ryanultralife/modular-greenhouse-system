@@ -169,13 +169,15 @@ WALKTHROUGHS: list[Flow] = [
         title="The marketing funnel (and what's automated)",
         roles=("owner",),
         status=BUILT,
-        why="Marketing isn't a separate tool bolted on — it attaches to each stage of the same order pipeline. Capture, attribute, sync, recover, nurture.",
+        why="Marketing isn't a separate tool bolted on — it attaches to each stage of the same order pipeline. Capture, attribute, follow up, sync, recover, nurture, promote.",
         steps=[
             "Capture: every quote request becomes a lead with contact info and source.",
             "Attribution: the public site captures UTM params + referrer + landing path on first visit; every lead and purchase carries that source data.",
+            "Follow up: each new lead automatically gets a personalized email about their exact configuration (AI-written when the Anthropic key is set, template otherwise).",
             "List sync: a configured webhook URL (Zapier/Make/n8n/custom) receives every new lead and paid order automatically.",
             "Recover: started-but-unpaid checkouts older than the grace period get a follow-up nudge by email.",
             "Nurture: shipped orders trigger an automated review / referral email after the configured delay.",
+            "Promote: a weekly pack of grounded Facebook post drafts — emailed to you and/or pushed to a Zapier webhook that publishes to your Page.",
         ],
         structural_notes=[
             "All of this rides the existing order pipeline — no separate CRM to keep in sync.",

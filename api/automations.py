@@ -67,6 +67,24 @@ DEFAULTS = {
         "send_after_hour_utc": 13,
         "subject": "Your Modular Greenhouses daily digest",
     },
+    "lead_followup": {
+        # Auto-send a personalized follow-up to each new website lead after the
+        # delay. AI-written when the Anthropic key is set, template otherwise —
+        # both use only the lead's saved configuration snapshot.
+        "delay_minutes": 60,
+        "max_per_run": 10,
+        "subject": "About your greenhouse quote",
+    },
+    "social_posts": {
+        # A batch of grounded Facebook/social post drafts every cadence_days.
+        # Emailed to recipient and/or POSTed one-by-one to webhook_url (point a
+        # Zapier/Make zap at your Facebook Page for hands-off publishing).
+        "cadence_days": 7,
+        "posts_per_batch": 3,
+        "recipient": "",
+        "webhook_url": "",
+        "subject": "Your social post pack",
+    },
 }
 
 
@@ -318,11 +336,16 @@ def _run_ai_digest(db: Session, config: dict) -> tuple[bool | None, str]:
     return True, f"sent ({mode})"
 
 
+from .growth import run_lead_followup as _run_lead_followup  # noqa: E402
+from .growth import run_social_posts as _run_social_posts  # noqa: E402
+
 DISPATCHERS = {
     "abandoned_checkout": _run_abandoned_checkout,
     "review_followup": _run_review_followup,
     "list_sync": _run_list_sync,
     "ai_digest": _run_ai_digest,
+    "lead_followup": _run_lead_followup,
+    "social_posts": _run_social_posts,
 }
 
 
