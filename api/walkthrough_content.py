@@ -185,6 +185,26 @@ WALKTHROUGHS: list[Flow] = [
         ],
     ),
     Flow(
+        id="ai_advisor",
+        title="The AI greenhouse advisor",
+        roles=("owner",),
+        status=BUILT,
+        why="The website doesn't just display products — it can talk. A grounded AI assistant answers visitors, prices any configuration with the real engine, and turns interest into quote requests, 24/7.",
+        steps=[
+            "A visitor opens the chat bubble on the public site and describes what they want.",
+            "The advisor calls the same pricing/engineering engine as the configurator — it cannot invent a price.",
+            "Custom layouts automatically carry the engineer sign-off caveat from the engine.",
+            "When the visitor is ready, the advisor collects a name + contact and submits a quote request — the same lead pipeline as the form.",
+            "Every exchange lands in the event log (actor 'agent:advisor') so you can review what customers ask.",
+        ],
+        structural_notes=[
+            "Grounding over generation: prices and engineering verdicts come only from tools backed by the engine; unverified prices stay TBD.",
+            "One safe action: the advisor can submit a quote request and nothing else — no payments, no order changes.",
+            "Cost is bounded: capped reply length, capped history, and per-visitor + global daily limits enforced through the event log.",
+            "Setup is self-serve: paste an Anthropic API key under Integrations — same pattern as Stripe/QuickBooks.",
+        ],
+    ),
+    Flow(
         id="why_choices",
         title="Why these structural choices",
         roles=("owner",),

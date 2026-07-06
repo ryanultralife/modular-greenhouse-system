@@ -7,7 +7,7 @@ name = "modular-greenhouse-system"
 version = "0.1.0"
 description = "Configuration, BOM, quoting, and engineering-triage engine for Modular Greenhouses"
 requires-python = ">=3.11"
-dependencies = ["fastapi>=0.110", "uvicorn[standard]>=0.27", "sqlalchemy>=2.0", "pydantic>=2", "httpx>=0.27", "cryptography>=42", "python-multipart", "psycopg[binary]>=3.1"]
+dependencies = ["fastapi>=0.110", "uvicorn[standard]>=0.27", "sqlalchemy>=2.0", "pydantic>=2", "httpx>=0.27", "cryptography>=42", "python-multipart", "psycopg[binary]>=3.1", "anthropic>=0.60"]
 
 [project.optional-dependencies]
 # The pure engine + CLI need nothing. The web suite needs these:
