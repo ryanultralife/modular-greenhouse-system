@@ -40,7 +40,7 @@ Everything is one system: a public site that sells and captures leads, and an ad
 **Why it's built this way:**
 
 - One source of truth: the database. The website and admin are two views of it.
-- Roles: the owner sees money/keys; staff see only operational work. That split is enforced server-side.
+- Roles: the owner sees money/keys; staff see operational work by default, plus any extra admin areas the owner grants per person on the Staff tab. Enforced server-side.
 
 ### Customer journey: visit → delivery
 
@@ -206,7 +206,7 @@ A few deliberate decisions keep the system trustworthy and safe to grow — wort
 
 - Verified-data model: prices/limits are flagged verified vs placeholder; nothing unverified is ever quoted or advertised.
 - Engineering never auto-certifies: custom layouts route to a human engineer.
-- Roles: owner vs staff is enforced on the server, so the work board can't leak money data.
+- Roles: owner vs staff is enforced on the server, so the work board can't leak money data. The owner can grant individual staff extra admin areas (orders, catalog, presets, marketing, copilot, configurator) from the Staff tab — but integration keys, staff accounts, and go-live never open to staff.
 - Idempotency: payment fulfillment is safe against duplicate/retried webhooks.
 - Serverless + Supabase: no runtime disk writes; data and secrets live in the DB/environment, which is why setup is done in the app and via env vars, not files.
 - Migrations mirror the data model, so the production database schema is reproducible.

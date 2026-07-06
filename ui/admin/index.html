@@ -27,17 +27,17 @@
   <nav id="tabs">
     <button data-tab="work" class="active">Today</button>
     <button data-tab="setup" class="owner-only">Go-live</button>
-    <button data-tab="configurator" class="owner-only">Configurator</button>
-    <button data-tab="orders" class="owner-only">Orders</button>
-    <button data-tab="catalog" class="owner-only">Catalog &amp; Pricing</button>
+    <button data-tab="configurator" data-perm="configurator">Configurator</button>
+    <button data-tab="orders" data-perm="orders">Orders</button>
+    <button data-tab="catalog" data-perm="catalog">Catalog &amp; Pricing</button>
     <button data-tab="production">Production</button>
     <button data-tab="inventory">Inventory</button>
-    <button data-tab="presets" class="owner-only">Presets</button>
-    <button data-tab="copacker" class="owner-only">Co-packer</button>
+    <button data-tab="presets" data-perm="presets">Presets</button>
+    <button data-tab="copacker" data-perm="presets">Co-packer</button>
     <button data-tab="integrations" class="owner-only">Integrations</button>
     <button data-tab="staff" class="owner-only">Staff</button>
-    <button data-tab="marketing" class="owner-only">Marketing</button>
-    <button data-tab="copilot" class="owner-only">Copilot</button>
+    <button data-tab="marketing" data-perm="marketing">Marketing</button>
+    <button data-tab="copilot" data-perm="copilot">Copilot</button>
     <button data-tab="walkthrough">Walkthrough</button>
     <button data-tab="help">Help</button>
   </nav>
@@ -54,8 +54,9 @@
     <!-- Staff (owner only) -->
     <section id="staff" class="tab">
       <h2>Staff accounts</h2>
-      <p class="muted">Employee logins. Staff see the Today board, Production, and Inventory —
-        not pricing, payments, or integration keys.</p>
+      <p class="muted">Employee logins. Out of the box staff see the Today board, Production, and
+        Inventory. Use the Access checkboxes to grant extra admin areas per person — changes take
+        effect on their next request. Integrations (API keys), Staff, and Go-live always stay owner-only.</p>
       <div class="card">
         <h3>Add staff member</h3>
         <div class="row">

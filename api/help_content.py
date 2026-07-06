@@ -139,7 +139,7 @@ SECTIONS: list[HelpSection] = [
     HelpSection(
         id="staff_scope",
         title="What you can and can't see",
-        summary="You see the operational board, inventory, production and shipping. You do NOT see prices, payments, integration keys, or staff accounts — that's intentional, so the work board never leaks money information to the floor.",
+        summary="You see the operational board, inventory, production and shipping. Extra areas (orders, catalog, presets, marketing, copilot) appear only if the owner has granted them to you. Integration keys and staff accounts are always owner-only.",
         where="—",
         roles=("staff",),
     ),

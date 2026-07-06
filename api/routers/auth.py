@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from ..auth import ADMIN_USER, authenticate, create_token, require_staff
+from ..auth import ADMIN_USER, authenticate, create_token, live_permissions, require_staff
 from ..db import session_dependency
 
 router = APIRouter(tags=["auth"])
@@ -32,5 +32,10 @@ def login(req: LoginRequest, db: Session = Depends(session_dependency)):
 
 
 @router.get("/auth/me")
-def me(principal: dict = Depends(require_staff)):
-    return {"username": principal["sub"], "role": principal["role"]}
+def me(principal: dict = Depends(require_staff), db: Session = Depends(session_dependency)):
+    return {
+        "username": principal["sub"],
+        "role": principal["role"],
+        # Live grants (owner = all areas). The admin UI shows/hides tabs off this.
+        "permissions": live_permissions(db, principal),
+    }

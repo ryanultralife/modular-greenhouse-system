@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .auth import require_owner, require_staff
+from .auth import require_owner, require_permission, require_staff
 from .db import init_db
 from .routers import (
     advisor,
@@ -99,9 +99,22 @@ def create_app(db_url: str | None = None) -> FastAPI:
     app.include_router(cron.router, prefix="/api")
     app.include_router(advisor.router, prefix="/api")
 
-    # Owner-only routers: financials, pricing, secrets, staff management, marketing.
-    for r in (quotes, orders, catalog, integrations, presets, setup, users, automations, copilot):
+    # Hard owner-only routers: credentials, staff accounts, go-live. These are
+    # never grantable to staff — they hold API keys or control who can log in.
+    for r in (integrations, setup, users):
         app.include_router(r.router, prefix="/api", dependencies=[Depends(require_owner)])
+
+    # Owner by default; each area is individually grantable to a staff member
+    # from the Staff tab (checked live against the DB on every request).
+    for r, area in (
+        (quotes, "configurator"),
+        (orders, "orders"),
+        (catalog, "catalog"),
+        (presets, "presets"),
+        (automations, "marketing"),
+        (copilot, "copilot"),
+    ):
+        app.include_router(r.router, prefix="/api", dependencies=[Depends(require_permission(area))])
 
     # Staff + owner routers: the operational work board and the lists behind it.
     for r in (work, inventory, production, shipping, help_router, walkthrough):

@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 
 from . import security
 from .db import session_dependency
-from .models_db import ROLES, User
+from .models_db import ROLES, STAFF_PERMISSIONS, User
 
 PW_FILE = security.DATA_DIR / ".admin_password"
 ADMIN_USER = os.environ.get("MGS_ADMIN_USER", "admin")
@@ -133,3 +133,36 @@ def require_owner(principal: dict = Depends(_principal)) -> dict:
     if principal.get("role") != "owner":
         raise _forbidden()
     return principal
+
+
+def live_permissions(db: Session, principal: dict) -> list[str]:
+    """The areas this principal can use RIGHT NOW. Owners get everything;
+    staff get whatever the owner has granted, read fresh from the DB (not the
+    token) so a revoke or account-disable applies to the very next request."""
+    if principal.get("role") == "owner":
+        return list(STAFF_PERMISSIONS)
+    user = db.scalar(select(User).where(User.username == principal.get("sub"), User.active.is_(True)))
+    if user is None:
+        return []
+    return [p for p in (user.permissions or []) if p in STAFF_PERMISSIONS]
+
+
+def require_permission(area: str):
+    """Dependency factory: owner always passes; staff pass only if the owner
+    granted them this area on the Staff tab."""
+    if area not in STAFF_PERMISSIONS:  # catch wiring typos at import time
+        raise ValueError(f"Unknown permission area: {area}")
+
+    # The principal comes via require_staff (a passthrough of _principal) so a
+    # test-time override of require_staff applies here too.
+    def dep(
+        principal: dict = Depends(require_staff),
+        db: Session = Depends(session_dependency),
+    ) -> dict:
+        if principal.get("role") == "owner":
+            return principal
+        if area in live_permissions(db, principal):
+            return principal
+        raise _forbidden("You don't have access to this area. Ask the owner to grant it on the Staff tab.")
+
+    return dep
