@@ -1,4 +1,4 @@
-"""Owner-only management of staff accounts."""
+"""Owner-only management of staff accounts and their per-area permissions."""
 
 from __future__ import annotations
 
@@ -9,23 +9,57 @@ from sqlalchemy.orm import Session
 
 from ..auth import ADMIN_USER, hash_password
 from ..db import session_dependency
-from ..models_db import User
+from ..models_db import STAFF_PERMISSIONS, User
 
 router = APIRouter(tags=["users"])
+
+# Human labels for the Staff tab. Blunt about what each grant exposes so the
+# owner makes an informed choice.
+PERMISSION_LABELS = {
+    "configurator": "Configurator & quoting (prices visible)",
+    "orders": "Orders (customer + payment details visible)",
+    "catalog": "Catalog & pricing editor",
+    "presets": "Presets & co-packer",
+    "marketing": "Marketing automations",
+    "copilot": "Business copilot (AI, sees sales numbers)",
+}
 
 
 class StaffCreate(BaseModel):
     username: str
     password: str
+    permissions: list[str] = []
 
 
 class StaffUpdate(BaseModel):
     password: str | None = None
     active: bool | None = None
+    permissions: list[str] | None = None
+
+
+def _clean_permissions(perms: list[str]) -> list[str]:
+    unknown = [p for p in perms if p not in STAFF_PERMISSIONS]
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"Unknown permission(s): {', '.join(unknown)}")
+    # Preserve canonical order, drop duplicates.
+    return [p for p in STAFF_PERMISSIONS if p in perms]
 
 
 def _out(u: User) -> dict:
-    return {"id": u.id, "username": u.username, "role": u.role, "active": u.active, "created_at": u.created_at}
+    return {
+        "id": u.id,
+        "username": u.username,
+        "role": u.role,
+        "active": u.active,
+        "permissions": u.permissions or [],
+        "created_at": u.created_at,
+    }
+
+
+@router.get("/staff/permissions")
+def list_permissions():
+    """The grantable areas (for rendering checkboxes in the Staff tab)."""
+    return [{"key": p, "label": PERMISSION_LABELS.get(p, p)} for p in STAFF_PERMISSIONS]
 
 
 @router.get("/staff")
@@ -43,7 +77,12 @@ def create_staff(req: StaffCreate, db: Session = Depends(session_dependency)):
     if db.scalar(select(User).where(User.username == username)):
         raise HTTPException(status_code=409, detail="That username already exists.")
     # The staff table only ever mints staff; the owner is the env-password account.
-    user = User(username=username, password_hash=hash_password(req.password), role="staff")
+    user = User(
+        username=username,
+        password_hash=hash_password(req.password),
+        role="staff",
+        permissions=_clean_permissions(req.permissions),
+    )
     db.add(user)
     db.commit()
     return _out(user)
@@ -60,6 +99,8 @@ def update_staff(user_id: int, req: StaffUpdate, db: Session = Depends(session_d
         user.password_hash = hash_password(req.password)
     if req.active is not None:
         user.active = req.active
+    if req.permissions is not None:
+        user.permissions = _clean_permissions(req.permissions)
     db.commit()
     return _out(user)
 

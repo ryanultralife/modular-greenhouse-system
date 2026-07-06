@@ -114,8 +114,14 @@ class Setting(Base):
 
 
 # Roles. "owner" sees everything (incl. secrets/pricing); "staff" gets the
-# operational work board + inventory/production/shipping, no financial data.
+# operational work board + inventory/production/shipping, no financial data —
+# unless the owner grants them extra areas (User.permissions below).
 ROLES = ("owner", "staff")
+
+# Admin areas the owner can grant to individual staff. Anything holding
+# credentials or account control (Integrations, Staff management, Go-live)
+# is deliberately NOT grantable — those stay owner-only no matter what.
+STAFF_PERMISSIONS = ("configurator", "orders", "catalog", "presets", "marketing", "copilot")
 
 
 class User(Base):
@@ -129,6 +135,10 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(200))
     role: Mapped[str] = mapped_column(String(20), default="staff")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Extra admin areas granted to this staff member (subset of
+    # STAFF_PERMISSIONS). Checked against the DB on every request, so
+    # revoking takes effect immediately — no waiting for token expiry.
+    permissions: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 

@@ -6,6 +6,7 @@ let LAST_QUOTE = null;   // last computed quote request+result
 let PROVIDERS = [];      // integration providers
 let TOKEN = localStorage.getItem("mgs_token") || "";
 let ROLE = "owner";      // set from /auth/me on boot
+let PERMS = [];          // granted areas from /auth/me (owner = all)
 
 // ---- helpers ----------------------------------------------------------
 async function api(path, opts = {}) {
@@ -86,7 +87,12 @@ function activateTab(name) {
 
 function applyRole() {
   const isOwner = ROLE === "owner";
+  // Hard owner-only (secrets/accounts/go-live) — never shown to staff.
   document.querySelectorAll(".owner-only").forEach((e) => { e.style.display = isOwner ? "" : "none"; });
+  // Grantable areas — shown when the owner granted them (owner sees all).
+  document.querySelectorAll("[data-perm]").forEach((e) => {
+    e.style.display = isOwner || PERMS.includes(e.dataset.perm) ? "" : "none";
+  });
   activateTab("work");  // everyone lands on Today
 }
 
@@ -783,12 +789,12 @@ document.getElementById("help-refresh").addEventListener("click", () => loadHelp
 
 // ---- staff accounts (owner only) ----
 async function loadStaff() {
-  const items = await api("/staff");
+  const [items, permDefs] = await Promise.all([api("/staff"), api("/staff/permissions")]);
   const box = document.getElementById("staff-list");
   box.innerHTML = "";
   if (!items.length) { box.append(el("p", { class: "muted" }, "No staff accounts yet.")); return; }
   const table = el("table");
-  table.append(el("tr", {}, el("th", {}, "Username"), el("th", {}, "Role"), el("th", {}, "Active"), el("th", {}, "")));
+  table.append(el("tr", {}, el("th", {}, "Username"), el("th", {}, "Active"), el("th", {}, "Access"), el("th", {}, "")));
   items.forEach((u) => {
     const toggle = el("button", { onclick: async () => {
       try { await api(`/staff/${u.id}`, { method: "PATCH", body: JSON.stringify({ active: !u.active }) }); toast("Updated"); loadStaff(); }
@@ -804,8 +810,25 @@ async function loadStaff() {
       try { await api(`/staff/${u.id}`, { method: "DELETE" }); toast("Removed"); loadStaff(); }
       catch (e) { toast(e.message, true); }
     } }, "Remove");
-    table.append(el("tr", {}, el("td", {}, u.username), el("td", {}, u.role),
+    // One checkbox per grantable area; each change saves immediately.
+    const perms = el("div", { class: "perm-grid" });
+    permDefs.forEach((p) => {
+      const cb = el("input", { type: "checkbox", "data-perm-key": p.key });
+      cb.checked = (u.permissions || []).includes(p.key);
+      cb.addEventListener("change", async () => {
+        const next = [...perms.querySelectorAll("input[data-perm-key]")]
+          .filter((i) => i.checked).map((i) => i.dataset.permKey);
+        try {
+          const updated = await api(`/staff/${u.id}`, { method: "PATCH", body: JSON.stringify({ permissions: next }) });
+          u.permissions = updated.permissions;
+          toast(cb.checked ? `Granted: ${p.label}` : `Revoked: ${p.label}`);
+        } catch (e) { cb.checked = !cb.checked; toast(e.message, true); }
+      });
+      perms.append(el("label", { class: "perm-item" }, cb, " ", p.label));
+    });
+    table.append(el("tr", {}, el("td", {}, u.username),
       el("td", {}, el("span", { class: "badge " + (u.active ? "ok" : "muted") }, u.active ? "active" : "disabled")),
+      el("td", {}, perms),
       el("td", {}, toggle, " ", reset, " ", del)));
   });
   box.append(table);
@@ -827,10 +850,11 @@ document.getElementById("staff-add").addEventListener("click", async () => {
 async function afterAuth() {
   const me = await api("/auth/me");
   ROLE = me.role || "owner";
+  PERMS = me.permissions || [];
   showApp();
   applyRole();
-  if (ROLE === "owner") {
-    await initConfigurator();   // /models is owner-only
+  if (ROLE === "owner" || PERMS.includes("configurator")) {
+    await initConfigurator();   // /models needs the configurator grant
   } else {
     document.getElementById("company").textContent = "Staff";
   }
