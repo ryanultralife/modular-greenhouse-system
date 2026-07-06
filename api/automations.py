@@ -59,6 +59,14 @@ DEFAULTS = {
         # custom endpoint. Empty string disables until configured.
         "webhook_url": "",
     },
+    "ai_digest": {
+        # Daily business briefing emailed to the owner. Sends once per day, on
+        # the first hourly cron run at/after send_after_hour_utc. AI-written when
+        # an Anthropic key is configured; otherwise a plain structured summary.
+        "recipient": "",
+        "send_after_hour_utc": 13,
+        "subject": "Your Modular Greenhouses daily digest",
+    },
 }
 
 
@@ -205,10 +213,116 @@ def _run_list_sync(db: Session, config: dict, *, http_client: httpx.Client | Non
     return True, f"{pushed} synced"
 
 
+def _render_plain_digest(snapshot: dict, marketing: dict) -> str:
+    """Structured fallback digest when no AI key is configured."""
+    lines = ["<h3>Daily digest</h3>", "<h4>Business</h4><ul>"]
+    for status, count in sorted((snapshot.get("orders_by_status") or {}).items()):
+        lines.append(f"<li>{escape(status)}: {int(count)}</li>")
+    lines.append(f"<li>Verified revenue (active orders): ${snapshot.get('verified_revenue_usd_all_active_orders', 0):,.2f}</li>")
+    lines.append(f"<li>Website leads (7 days): {snapshot.get('website_leads_last_7_days', 0)}</li>")
+    lines.append("</ul>")
+    low = snapshot.get("low_stock_items") or []
+    if low:
+        lines.append("<h4>Restock</h4><ul>")
+        for i in low:
+            lines.append(f"<li>{escape(str(i['name']))}: {i['on_hand']} {escape(str(i['unit']))} (reorder at {i['reorder_point']})</li>")
+        lines.append("</ul>")
+    by_source = marketing.get("website_leads_by_source") or {}
+    if by_source:
+        lines.append("<h4>Leads by source</h4><ul>")
+        for src, n in sorted(by_source.items(), key=lambda kv: -kv[1]):
+            lines.append(f"<li>{escape(str(src))}: {int(n)}</li>")
+        lines.append("</ul>")
+    if marketing.get("abandoned_checkouts_open"):
+        lines.append(f"<p>Open abandoned checkouts: {marketing['abandoned_checkouts_open']}</p>")
+    return "".join(lines)
+
+
+def _ai_digest_text(db: Session, snapshot: dict, marketing: dict) -> str | None:
+    """AI-written digest when a key is configured; None on any failure (fallback)."""
+    from .advisor import get_advisor_config
+
+    config = get_advisor_config(db)
+    if config is None:
+        return None
+    try:
+        import json
+
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=config["api_key"])
+        try:
+            response = client.messages.create(
+                model=config["model"],
+                max_tokens=800,
+                thinking={"type": "adaptive"},
+                output_config={"effort": "medium"},
+                system=(
+                    "You write a short morning business digest for the owner of a modular "
+                    "greenhouse company, from the JSON data provided. Rules: use ONLY numbers "
+                    "present in the data; lead with what needs attention today (restock, "
+                    "abandoned checkouts, builds due); then a one-line pulse on sales and "
+                    "lead sources. Plain HTML (<p>, <ul>), no invented facts, under 180 words."
+                ),
+                messages=[{
+                    "role": "user",
+                    "content": "Today's data:\n" + json.dumps({"business": snapshot, "marketing": marketing}, default=str),
+                }],
+            )
+        finally:
+            client.close()
+        if response.stop_reason == "refusal":
+            return None
+        text = "".join(b.text for b in response.content if b.type == "text").strip()
+        return text or None
+    except Exception:  # noqa: BLE001 — digest must degrade, never crash the cron
+        return None
+
+
+def _run_ai_digest(db: Session, config: dict) -> tuple[bool | None, str]:
+    from .copilot import build_business_snapshot, build_marketing_insights
+
+    recipient = (config.get("recipient") or "").strip()
+    if not recipient:
+        return None, "no recipient configured"
+
+    now = datetime.now(timezone.utc)
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    already = db.scalar(
+        select(AuditEvent.id).where(
+            AuditEvent.kind == "marketing.ai_digest.sent", AuditEvent.occurred_at >= day_start
+        ).limit(1)
+    )
+    if already is not None:
+        return True, "already sent today"
+    send_after = int(config.get("send_after_hour_utc", 13) or 0)
+    if now.hour < send_after:
+        return True, f"waiting until {send_after:02d}:00 UTC"
+
+    snapshot = build_business_snapshot(db)
+    marketing = build_marketing_insights(db)
+    html = _ai_digest_text(db, snapshot, marketing)
+    mode = "ai"
+    if html is None:
+        html = _render_plain_digest(snapshot, marketing)
+        mode = "plain"
+
+    try:
+        send_email(db, recipient, config.get("subject") or DEFAULTS["ai_digest"]["subject"], html)
+    except EmailError as exc:
+        return False, f"SMTP failed: {exc}"
+    record_event(
+        db, "marketing.ai_digest.sent", entity_type="", entity_id=None,
+        data={"to": recipient, "mode": mode},
+    )
+    return True, f"sent ({mode})"
+
+
 DISPATCHERS = {
     "abandoned_checkout": _run_abandoned_checkout,
     "review_followup": _run_review_followup,
     "list_sync": _run_list_sync,
+    "ai_digest": _run_ai_digest,
 }
 
 

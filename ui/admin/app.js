@@ -73,6 +73,7 @@ function onTab(name) {
   if (name === "copacker") loadCopacker();
   if (name === "staff") loadStaff();
   if (name === "marketing") loadMarketing();
+  if (name === "copilot") loadCopilot();
   if (name === "walkthrough") loadWalkthrough();
   if (name === "help") loadHelp();
 }
@@ -643,6 +644,59 @@ async function loadMarketing() {
 document.getElementById("auto-run-now").addEventListener("click", async () => {
   try { const r = await api("/automations/run", { method: "POST" }); toast("Ran " + r.results.length + " automation(s)"); loadMarketing(); }
   catch (e) { toast(e.message, true); }
+});
+
+
+// ---- owner copilot (read-only ops assistant) ----
+let COPILOT_HISTORY = [];
+
+function copBubble(role, text) {
+  const box = document.getElementById("cop-msgs");
+  const div = el("div", {
+    style: "max-width:85%;padding:9px 12px;border-radius:12px;font-size:14px;line-height:1.5;white-space:pre-wrap;" +
+      (role === "user"
+        ? "align-self:flex-end;background:var(--green);color:#fff"
+        : "align-self:flex-start;background:#fff;border:1px solid var(--border)"),
+  }, text);
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}
+
+function loadCopilot() {
+  const box = document.getElementById("cop-msgs");
+  box.innerHTML = "";
+  if (!COPILOT_HISTORY.length) {
+    copBubble("assistant", "Ask me anything about the business — sales, what to build, stock, or which marketing channel is working. Every number comes from live data.");
+  } else {
+    COPILOT_HISTORY.forEach((m) => copBubble(m.role, m.content));
+  }
+}
+
+document.getElementById("cop-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = document.getElementById("cop-input");
+  const send = document.getElementById("cop-send");
+  const text = input.value.trim();
+  if (!text || send.disabled) return;
+  input.value = "";
+  COPILOT_HISTORY.push({ role: "user", content: text });
+  copBubble("user", text);
+  send.disabled = true;
+  const typing = copBubble("assistant", "…");
+  try {
+    const data = await api("/copilot", { method: "POST", body: JSON.stringify({ messages: COPILOT_HISTORY }) });
+    typing.remove();
+    COPILOT_HISTORY.push({ role: "assistant", content: data.reply });
+    copBubble("assistant", data.reply);
+  } catch (err) {
+    typing.remove();
+    COPILOT_HISTORY.pop();  // let them retry the same question
+    copBubble("assistant", err.message);
+  } finally {
+    send.disabled = false;
+    input.focus();
+  }
 });
 
 // ---- walkthrough (role-aware guided tour) ----

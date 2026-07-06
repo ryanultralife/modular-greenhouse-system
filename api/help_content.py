@@ -261,6 +261,26 @@ SECTIONS: list[HelpSection] = [
             "The chat bubble appears on the public site automatically once configured.",
         ],
     ),
+    HelpSection(
+        id="copilot",
+        title="Copilot & daily digest",
+        summary=(
+            "Your operations copilot (Copilot tab) answers questions about sales, "
+            "production, stock, and marketing from live data — read-only by design; it "
+            "points you at the right tab to act. The ai_digest automation (Marketing "
+            "tab) emails you a daily briefing: AI-written when the Anthropic key is "
+            "set, a plain structured summary otherwise. Uses the same Anthropic key "
+            "as the advisor."
+        ),
+        where="Copilot / Marketing",
+        roles=("owner",),
+        status_fn=_advisor_status,
+        steps=[
+            "Add the Anthropic key under Integrations (shared with the advisor).",
+            "Open the Copilot tab and ask e.g. 'What should we build this week?'",
+            "On the Marketing tab, set a recipient on ai_digest and enable it — it sends once a day via the hourly cron.",
+        ],
+    ),
 ]
 
 

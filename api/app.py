@@ -22,6 +22,7 @@ from .routers import (
     auth,
     automations,
     catalog,
+    copilot,
     cron,
     help as help_router,
     integrations,
@@ -99,7 +100,7 @@ def create_app(db_url: str | None = None) -> FastAPI:
     app.include_router(advisor.router, prefix="/api")
 
     # Owner-only routers: financials, pricing, secrets, staff management, marketing.
-    for r in (quotes, orders, catalog, integrations, presets, setup, users, automations):
+    for r in (quotes, orders, catalog, integrations, presets, setup, users, automations, copilot):
         app.include_router(r.router, prefix="/api", dependencies=[Depends(require_owner)])
 
     # Staff + owner routers: the operational work board and the lists behind it.

@@ -190,7 +190,7 @@ class AuditEvent(Base):
 
 
 # Marketing automation toggles. The runner dispatches by kind.
-AUTOMATION_KINDS = ("abandoned_checkout", "review_followup", "list_sync")
+AUTOMATION_KINDS = ("abandoned_checkout", "review_followup", "list_sync", "ai_digest")
 
 
 class Automation(Base):

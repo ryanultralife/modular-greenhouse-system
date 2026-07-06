@@ -37,6 +37,7 @@
     <button data-tab="integrations" class="owner-only">Integrations</button>
     <button data-tab="staff" class="owner-only">Staff</button>
     <button data-tab="marketing" class="owner-only">Marketing</button>
+    <button data-tab="copilot" class="owner-only">Copilot</button>
     <button data-tab="walkthrough">Walkthrough</button>
     <button data-tab="help">Help</button>
   </nav>
@@ -252,6 +253,22 @@
       <h3>Recent events</h3>
       <p class="muted">The shared event log behind every automation (and the audit trail for the system).</p>
       <div id="auto-events"></div>
+    </section>
+
+    <!-- Copilot -->
+    <section id="copilot" class="tab">
+      <h2>Copilot</h2>
+      <p class="muted">Ask about sales, production, inventory, or marketing — answers come
+        from live data. The copilot is read-only: it analyzes and points you at the right
+        tab to act. Needs an Anthropic key under Integrations.</p>
+      <div class="card" style="display:flex;flex-direction:column;height:480px;padding:0;overflow:hidden">
+        <div id="cop-msgs" style="flex:1 1 auto;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px;background:var(--bg)"></div>
+        <form id="cop-form" style="display:flex;gap:8px;padding:10px;border-top:1px solid var(--border)">
+          <input id="cop-input" autocomplete="off" maxlength="4000" placeholder="e.g. What should we build this week?" style="flex:1 1 auto;min-width:0" />
+          <button id="cop-send" class="primary" type="submit">Ask</button>
+        </form>
+      </div>
+      <p class="muted" style="margin-top:8px">Try: "How are sales this week?" · "What's low on stock?" · "Which channel converts best?"</p>
     </section>
 
     <!-- Walkthrough -->
