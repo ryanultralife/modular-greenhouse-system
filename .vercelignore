@@ -8,5 +8,7 @@ data/.admin_password
 **/__pycache__/
 *.pyc
 
-# Source photo library (212MB) — archived in git, never served; ui/public/assets is the deployed subset
-assets/
+# Source photo library (212MB) at the REPO ROOT ONLY — archived in git, never
+# served. Anchored with a leading slash: an unanchored 'assets/' also matches
+# ui/public/assets/ (the images the site actually serves) and breaks them.
+/assets/
