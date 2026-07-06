@@ -9,6 +9,7 @@ os.environ.setdefault("MGS_SECRET_KEY", Fernet.generate_key().decode())
 from fastapi.testclient import TestClient  # noqa: E402
 
 from api.app import create_app  # noqa: E402
+from api.db import dispose_engine  # noqa: E402
 
 
 class HelpTest(unittest.TestCase):
@@ -20,6 +21,7 @@ class HelpTest(unittest.TestCase):
         self.client = TestClient(create_app(db_url=f"sqlite:///{self._tmp.name}"))
 
     def tearDown(self):
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
 
     def _login(self, u, p):

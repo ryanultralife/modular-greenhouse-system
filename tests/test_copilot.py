@@ -18,7 +18,7 @@ from api.copilot import (  # noqa: E402
     build_marketing_insights,
     run_copilot,
 )
-from api.db import get_session, init_db  # noqa: E402
+from api.db import dispose_engine, get_session, init_db  # noqa: E402
 from api.models_db import AuditEvent, Automation, Integration, Order  # noqa: E402
 
 
@@ -79,6 +79,7 @@ class CopilotServiceTest(unittest.TestCase):
 
     def tearDown(self):
         self.db.close()
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
 
     def test_snapshot_reflects_live_data(self):
@@ -137,6 +138,7 @@ class CopilotAccessTest(unittest.TestCase):
         self.client = TestClient(create_app(db_url=f"sqlite:///{self._tmp.name}"))
 
     def tearDown(self):
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
 
     def _login(self, u, p):
@@ -180,6 +182,7 @@ class AiDigestTest(unittest.TestCase):
     def tearDown(self):
         auto_mod.send_email = self._orig
         self.db.close()
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
 
     def test_plain_digest_without_ai_key_and_daily_idempotency(self):

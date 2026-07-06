@@ -21,6 +21,7 @@ class PresetIn(BaseModel):
     shape: str = "straight"
     runs: list[float] = []
     price_usd: float | None = None
+    compare_at_usd: float | None = None
     verified_price: bool = False
     ship_speed: str = "next_day"
     image_url: str = ""
@@ -49,6 +50,7 @@ def _preset_out(p: Preset, db: Session) -> dict:
         "shape": p.shape,
         "runs": p.runs,
         "price_usd": p.price_usd,
+        "compare_at_usd": p.compare_at_usd,
         "verified_price": p.verified_price,
         "ship_speed": p.ship_speed,
         "image_url": p.image_url,

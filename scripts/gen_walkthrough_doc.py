@@ -20,7 +20,7 @@ OUT = ROOT / "docs" / "WALKTHROUGH.md"
 
 def main() -> None:
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(render_markdown())
+    OUT.write_text(render_markdown(), encoding="utf-8", newline="\n")
     print(f"Wrote {OUT.relative_to(ROOT)}")
 
 

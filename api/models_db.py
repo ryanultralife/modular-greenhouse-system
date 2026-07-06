@@ -144,6 +144,7 @@ class Preset(Base):
     shape: Mapped[str] = mapped_column(String(16), default="straight")
     runs: Mapped[list] = mapped_column(JSON, default=list)
     price_usd: Mapped[float | None] = mapped_column(nullable=True)
+    compare_at_usd: Mapped[float | None] = mapped_column(nullable=True)  # regular price, for promo strikethrough
     verified_price: Mapped[bool] = mapped_column(Boolean, default=False)
     ship_speed: Mapped[str] = mapped_column(String(16), default="next_day")  # same_day | next_day
     image_url: Mapped[str] = mapped_column(String(400), default="")

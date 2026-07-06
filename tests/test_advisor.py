@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from api import advisor as advisor_mod, security  # noqa: E402
 from api.advisor import AdvisorError, run_advisor  # noqa: E402
 from api.app import create_app  # noqa: E402
-from api.db import get_session, init_db  # noqa: E402
+from api.db import dispose_engine, get_session, init_db  # noqa: E402
 from api.models_db import AuditEvent, Integration, Order  # noqa: E402
 
 
@@ -57,6 +57,7 @@ class AdvisorServiceTest(unittest.TestCase):
 
     def tearDown(self):
         self.db.close()
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
 
     def _add_key(self):
@@ -184,6 +185,7 @@ class AdvisorEndpointTest(unittest.TestCase):
         self.client = TestClient(create_app(db_url=f"sqlite:///{self._tmp.name}"))
 
     def tearDown(self):
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
 
     def test_endpoint_is_open_but_503_without_key(self):

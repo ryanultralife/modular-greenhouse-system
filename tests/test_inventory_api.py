@@ -9,6 +9,7 @@ os.environ.setdefault("MGS_SECRET_KEY", Fernet.generate_key().decode())
 from fastapi.testclient import TestClient  # noqa: E402
 
 from api.app import create_app  # noqa: E402
+from api.db import dispose_engine  # noqa: E402
 
 
 class InventoryPresetApiTest(unittest.TestCase):
@@ -24,6 +25,7 @@ class InventoryPresetApiTest(unittest.TestCase):
         self.client = TestClient(app)
 
     def tearDown(self):
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
 
     def test_inventory_crud_and_adjust(self):

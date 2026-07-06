@@ -8,7 +8,7 @@ from cryptography.fernet import Fernet
 os.environ.setdefault("MGS_SECRET_KEY", Fernet.generate_key().decode())
 
 from api import billing  # noqa: E402
-from api.db import get_session, init_db  # noqa: E402
+from api.db import dispose_engine, get_session, init_db  # noqa: E402
 from api.models_db import Order  # noqa: E402
 from api.stripe_client import STRIPE_BASE, StripeClient  # noqa: E402
 
@@ -40,6 +40,7 @@ class BillingTest(unittest.TestCase):
 
     def tearDown(self):
         self.db.close()
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
 
     def _order(self, complete=True):

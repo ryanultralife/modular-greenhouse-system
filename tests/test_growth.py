@@ -10,7 +10,7 @@ os.environ.setdefault("MGS_SECRET_KEY", Fernet.generate_key().decode())
 
 from api import growth  # noqa: E402
 from api.automations import _ensure_seeded, run_automations  # noqa: E402
-from api.db import get_session, init_db  # noqa: E402
+from api.db import dispose_engine, get_session, init_db  # noqa: E402
 from api.models_db import AuditEvent, Automation, Order  # noqa: E402
 
 
@@ -49,6 +49,7 @@ class GrowthBase(unittest.TestCase):
     def tearDown(self):
         growth.send_email = self._orig_send
         self.db.close()
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
 
     def _enable(self, kind, **config):

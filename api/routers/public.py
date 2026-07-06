@@ -179,6 +179,11 @@ def public_presets(db: Session = Depends(session_dependency)):
                 "name": p.name,
                 "description": p.description,
                 "price_usd": p.price_usd if priced else None,
+                "compare_at_usd": (
+                    p.compare_at_usd
+                    if priced and p.compare_at_usd and p.price_usd and p.compare_at_usd > p.price_usd
+                    else None
+                ),
                 "ship_speed": p.ship_speed,
                 "image_url": p.image_url,
                 "in_stock": in_stock,

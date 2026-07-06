@@ -10,6 +10,7 @@ os.environ.setdefault("MGS_SECRET_KEY", Fernet.generate_key().decode())
 from fastapi.testclient import TestClient  # noqa: E402
 
 from api.app import create_app  # noqa: E402
+from api.db import dispose_engine  # noqa: E402
 from api.walkthrough_content import render_markdown  # noqa: E402
 
 
@@ -21,6 +22,7 @@ class WalkthroughTest(unittest.TestCase):
         self.client = TestClient(create_app(db_url=f"sqlite:///{self._tmp.name}"))
 
     def tearDown(self):
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
 
     def _login(self, u, p):
@@ -60,7 +62,7 @@ class WalkthroughTest(unittest.TestCase):
         doc = Path(__file__).resolve().parents[1] / "docs" / "WALKTHROUGH.md"
         self.assertTrue(doc.exists(), "docs/WALKTHROUGH.md missing — run scripts/gen_walkthrough_doc.py")
         self.assertEqual(
-            doc.read_text(), render_markdown(),
+            doc.read_text(encoding="utf-8"), render_markdown(),
             "docs/WALKTHROUGH.md is stale — run python3 scripts/gen_walkthrough_doc.py",
         )
 

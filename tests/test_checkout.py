@@ -8,7 +8,7 @@ os.environ.setdefault("MGS_SECRET_KEY", Fernet.generate_key().decode())
 
 from api import checkout, inventory_store  # noqa: E402
 from api.checkout import CheckoutError  # noqa: E402
-from api.db import get_session, init_db  # noqa: E402
+from api.db import dispose_engine, get_session, init_db  # noqa: E402
 from api.models_db import CoPackerOrder, Order, Preset  # noqa: E402
 
 
@@ -30,6 +30,7 @@ class CheckoutTest(unittest.TestCase):
 
     def tearDown(self):
         self.db.close()
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
 
     def _preset(self, price=1499.0, verified=True, stock=2, copacker="Acme"):

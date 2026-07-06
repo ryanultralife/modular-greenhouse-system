@@ -13,7 +13,7 @@ from api import automations as auto_mod, inventory_store, security  # noqa: E402
 from api.app import create_app  # noqa: E402
 from api.auth import require_owner, require_staff  # noqa: E402
 from api.automations import _ensure_seeded, run_automations  # noqa: E402
-from api.db import get_session, init_db  # noqa: E402
+from api.db import dispose_engine, get_session, init_db  # noqa: E402
 from api.models_db import AuditEvent, Automation, Integration, Order, Preset  # noqa: E402
 
 
@@ -37,6 +37,7 @@ class AttributionAndEventsTest(unittest.TestCase):
         self.client = TestClient(app)
 
     def tearDown(self):
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
 
     def test_lead_records_event_and_attribution(self):
@@ -88,6 +89,7 @@ class AutomationRunnerTest(unittest.TestCase):
 
     def tearDown(self):
         self.db.close()
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
 
     def _smtp_integration(self):
@@ -180,6 +182,7 @@ class CronEndpointTest(unittest.TestCase):
         self.client = TestClient(create_app(db_url=f"sqlite:///{self._tmp.name}"))
 
     def tearDown(self):
+        dispose_engine()  # Windows: release the SQLite file lock before unlink
         os.unlink(self._tmp.name)
         os.environ.pop("CRON_SECRET", None)
 

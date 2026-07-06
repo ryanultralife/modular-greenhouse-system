@@ -72,6 +72,13 @@ def init_db(db_url: str | None = None):
     return _engine
 
 
+def dispose_engine():
+    """Release pooled connections. Needed on Windows, where an open pooled
+    connection locks the SQLite file and blocks deletion (tests do this)."""
+    if _engine is not None:
+        _engine.dispose()
+
+
 def get_session() -> Session:
     if _SessionLocal is None:
         init_db()

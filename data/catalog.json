@@ -107,6 +107,46 @@
           "weight_lb": null
         }
       }
+    },
+    "a_frame_8": {
+      "name": "8' Wide A-Frame Modular Greenhouse",
+      "_note": "The standard/original line. Site price ladder is linear: 8x8 $3280 then +$820 per 4' module (8x12 $4100, 8x16 $4920, 8x20 $5740, 8x24 $6560). Pop-out and side-cathedral options exist on the site (+$820 each) and are not yet modeled here.",
+      "bay_length_ft": 4,
+      "width_ft": 8,
+      "base_bays": 2,
+      "base_end_caps": 2,
+      "skus": {
+        "base_kit": {
+          "name": "8×8 A-Frame Base Kit (2 bays, 2 end caps)",
+          "price_usd": 3280,
+          "verified_price": true,
+          "weight_lb": null
+        },
+        "extension_module": {
+          "name": "4' Extension Module (adds 1 bay)",
+          "price_usd": 820,
+          "verified_price": true,
+          "weight_lb": null
+        },
+        "end_cap": {
+          "name": "End Cap Panel",
+          "price_usd": null,
+          "verified_price": false,
+          "weight_lb": null
+        },
+        "door_end": {
+          "name": "Door End Panel",
+          "price_usd": null,
+          "verified_price": false,
+          "weight_lb": null
+        },
+        "junction_kit": {
+          "name": "Junction / Branch Connector Kit",
+          "price_usd": null,
+          "verified_price": false,
+          "weight_lb": null
+        }
+      }
     }
   },
 

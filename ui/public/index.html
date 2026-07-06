@@ -27,6 +27,7 @@
       <div class="links">
         <a href="#how">How it works</a>
         <a href="#models">Models</a>
+        <a href="#gallery">Gallery</a>
         <a href="#engineering">Engineering</a>
         <a href="#faq">FAQ</a>
         <a class="btn" href="/configure.html">Configure &amp; quote</a>
@@ -82,12 +83,14 @@
         estimate on any size and shape.</p>
       <div class="grid two" id="model-cards">
         <div class="card">
+          <img class="card-img" src="/assets/models/raised-bed.jpg" alt="4x4 Modular Raised Bed Greenhouse, side view" loading="lazy" />
           <h3>4×4 Raised Bed Greenhouse</h3>
           <div class="price">Configure for pricing</div>
           <ul><li>Compact raised-bed growing</li><li>Extends in 4-ft increments</li><li>Foldable hinge assembly</li></ul>
           <a class="btn green" href="/configure.html" style="margin-top:16px">Configure this</a>
         </div>
         <div class="card">
+          <img class="card-img" src="/assets/models/barn-style.jpg" alt="6x4 Barn Style Modular Greenhouse, side view" loading="lazy" />
           <h3>Barn Style Greenhouse</h3>
           <div class="price">Configure for pricing</div>
           <ul><li>Walk-in barn-style headroom</li><li>Extends in 4-ft increments</li><li>Foldable hinge assembly</li></ul>
@@ -112,6 +115,24 @@
       <a class="btn" href="/configure.html">Start designing</a>
     </div>
   </div>
+
+  <section class="block" id="gallery">
+    <div class="wrap">
+      <h2>Out in the wild</h2>
+      <p class="sub">Real installs from Reno to the Sierra — backyards, small farms, and greenhouses
+        shrugging off feet of snow.</p>
+      <div class="gallery-grid">
+        <img src="/assets/gallery/gallery-12.jpg" alt="Modular greenhouse at sunset" loading="lazy" />
+        <img src="/assets/gallery/gallery-24.jpg" alt="Greenhouse with doors open onto a brick path" loading="lazy" />
+        <img src="/assets/gallery/gallery-28.jpg" alt="Long run of connected greenhouses on a small farm" loading="lazy" />
+        <img src="/assets/gallery/gallery-29.jpg" alt="Greenhouse complex with garden bench at sunset" loading="lazy" />
+        <img src="/assets/gallery/gallery-16.jpg" alt="Backyard greenhouse install" loading="lazy" />
+        <img src="/assets/gallery/gallery-26.jpg" alt="Tomatoes growing inside a modular greenhouse" loading="lazy" />
+        <img src="/assets/gallery/gallery-img-6379.jpg" alt="Snow trench dug to a greenhouse after a Sierra storm" loading="lazy" />
+        <img src="/assets/gallery/gallery-11.jpg" alt="Sunflower inside a greenhouse with raised beds" loading="lazy" />
+      </div>
+    </div>
+  </section>
 
   <section class="block" id="engineering">
     <div class="wrap">
@@ -182,13 +203,22 @@
       if (Array.isArray(data.models) && data.models.length) {
         const box = document.getElementById("model-cards");
         box.innerHTML = "";
+        const modelImg = (name) => {
+          const n = (name || "").toLowerCase();
+          if (n.includes("raised")) return "/assets/models/raised-bed.jpg";
+          if (n.includes("barn")) return "/assets/models/barn-style.jpg";
+          if (n.includes("frame")) return "/assets/models/a-frame.jpg";
+          return null;
+        };
         data.models.forEach(m => {
           const price = m.base_price_usd != null
             ? `from $${Number(m.base_price_usd).toLocaleString()}`
             : "Configure for pricing";
           const card = document.createElement("div");
           card.className = "card";
+          const img = modelImg(m.name);
           card.innerHTML =
+            (img ? `<img class="card-img" src="${img}" alt="${m.name}" loading="lazy" />` : "") +
             `<h3>${m.name}</h3>` +
             `<div class="price">${price}</div>` +
             `<ul><li>${m.width_ft ? m.width_ft + ' ft wide' : 'Modular footprint'}</li>` +
@@ -224,9 +254,13 @@
         const card = document.createElement("div");
         card.className = "card";
         card.innerHTML =
+          (p.image_url ? `<img class="card-img" src="${p.image_url}" alt="${p.name}" loading="lazy" />` : "") +
           `<h3>${p.name}</h3>` +
           (p.description ? `<p class="muted">${p.description}</p>` : "") +
-          `<div class="price">${money(p.price_usd)}</div>` +
+          `<div class="price">` +
+            (p.compare_at_usd ? `<span class="was">${money(p.compare_at_usd)}</span> ` : "") +
+            `${money(p.price_usd)}` +
+          `</div>` +
           `<p class="muted">Ships ${p.ship_speed.replace("_", " ")}</p>`;
         const btn = document.createElement("button");
         btn.className = "btn green";

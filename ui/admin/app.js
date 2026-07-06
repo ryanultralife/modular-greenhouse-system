@@ -975,7 +975,7 @@ async function loadPresets() {
     table.append(el("tr", {},
       el("td", {}, p.name),
       el("td", {}, `${p.model_id || "—"} ${p.shape} [${(p.runs || []).join(",")}]`),
-      el("td", {}, usd(p.price_usd)),
+      el("td", {}, usd(p.price_usd) + (p.compare_at_usd ? ` (was ${usd(p.compare_at_usd)})` : "")),
       el("td", {}, el("span", { class: "badge " + (p.verified_price ? "ok" : "warn") }, p.verified_price ? "yes" : "no")),
       el("td", {}, p.ship_speed),
       el("td", {}, String(p.on_hand)),
@@ -994,8 +994,11 @@ document.getElementById("ps-save").addEventListener("click", async () => {
     shape: document.getElementById("ps-shape").value || "straight",
     runs,
     price_usd: document.getElementById("ps-price").value === "" ? null : parseFloat(document.getElementById("ps-price").value),
+    compare_at_usd: document.getElementById("ps-compare").value === "" ? null : parseFloat(document.getElementById("ps-compare").value),
     verified_price: document.getElementById("ps-verified").checked,
     ship_speed: document.getElementById("ps-ship").value,
+    image_url: document.getElementById("ps-image").value.trim(),
+    description: document.getElementById("ps-desc").value.trim(),
   };
   if (!body.name) { toast("Name required", true); return; }
   try { await api("/presets", { method: "POST", body: JSON.stringify(body) }); toast("Preset created (set stock in Inventory)"); loadPresets(); }
