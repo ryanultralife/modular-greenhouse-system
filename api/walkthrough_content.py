@@ -205,6 +205,24 @@ WALKTHROUGHS: list[Flow] = [
         ],
     ),
     Flow(
+        id="owner_copilot",
+        title="The owner copilot & daily digest",
+        roles=("owner",),
+        status=BUILT,
+        why="Intelligence for the inside of the business: ask questions in plain English and get answers from live data, plus an automated morning briefing so you start each day knowing what needs attention.",
+        steps=[
+            "Copilot tab: ask 'what should we build this week?', 'how are sales?', 'which channel converts?' — it reads the same live data as your tabs.",
+            "It is read-only on purpose: it analyzes and tells you where to act; the buttons stay under your finger.",
+            "The ai_digest automation emails a daily briefing (restock, abandoned checkouts, builds due, lead sources) — AI-written when the Anthropic key is set, plain summary otherwise.",
+            "Set the digest recipient and enable it on the Marketing tab; it sends once a day via the existing hourly cron.",
+        ],
+        structural_notes=[
+            "Copilot and digest share the same data builders, so the chat and the email can never disagree.",
+            "Read-only by design: an assistant that can silently ship orders or send invoices is a liability — actions stay behind explicit buttons.",
+            "Every copilot exchange is logged in the event log (actor 'agent:copilot'), same as the customer advisor.",
+        ],
+    ),
+    Flow(
         id="why_choices",
         title="Why these structural choices",
         roles=("owner",),

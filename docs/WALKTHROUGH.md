@@ -175,6 +175,25 @@ The website doesn't just display products — it can talk. A grounded AI assista
 - Cost is bounded: capped reply length, capped history, and per-visitor + global daily limits enforced through the event log.
 - Setup is self-serve: paste an Anthropic API key under Integrations — same pattern as Stripe/QuickBooks.
 
+### The owner copilot & daily digest
+
+**✅ Built** · _Audience: owner_
+
+Intelligence for the inside of the business: ask questions in plain English and get answers from live data, plus an automated morning briefing so you start each day knowing what needs attention.
+
+**Steps:**
+
+1. Copilot tab: ask 'what should we build this week?', 'how are sales?', 'which channel converts?' — it reads the same live data as your tabs.
+1. It is read-only on purpose: it analyzes and tells you where to act; the buttons stay under your finger.
+1. The ai_digest automation emails a daily briefing (restock, abandoned checkouts, builds due, lead sources) — AI-written when the Anthropic key is set, plain summary otherwise.
+1. Set the digest recipient and enable it on the Marketing tab; it sends once a day via the existing hourly cron.
+
+**Why it's built this way:**
+
+- Copilot and digest share the same data builders, so the chat and the email can never disagree.
+- Read-only by design: an assistant that can silently ship orders or send invoices is a liability — actions stay behind explicit buttons.
+- Every copilot exchange is logged in the event log (actor 'agent:copilot'), same as the customer advisor.
+
 ### Why these structural choices
 
 **✅ Built** · _Audience: owner_
